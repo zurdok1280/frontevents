@@ -9,6 +9,7 @@ import StationSchedule from "./pages/StationSchedule";
 import RadioDetail from "./pages/RadioDetail";
 import ReportsAnalysis from "./pages/ReportsAnalysis";
 import NotFound from "./pages/NotFound";
+import { LatestMentionsPerArtist } from "./components/dashboard/LatestMentionsPerArtist";
 
 const queryClient = new QueryClient();
 
@@ -26,6 +27,8 @@ const App = () => (
           <Route path="/event/:eventId/radio/:radioStation" element={<RadioDetail />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
+          {/* OTHER ROUTES */}
+          <Route path="artist/:artistName" element={<LatestMentionsPerArtist />} />
         </Routes>
       </BrowserRouter>
     </TooltipProvider>

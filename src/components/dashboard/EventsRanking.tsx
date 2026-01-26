@@ -1,261 +1,366 @@
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowRight, Sparkles, Calendar, TrendingUp, Music } from "lucide-react";
+import { ArrowRight, Sparkles, Calendar, TrendingUp, Music, Radio, Headphones, MapPin } from "lucide-react";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { realEventsDatabase } from "@/lib/realEventsDatabase";
+import { getMentionsResume, Deteccion } from "@/lib/api";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
+
+// Formatear fecha
+const formatDate = (dateString: string) => {
+  try {
+    const date = new Date(dateString);
+    return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
+  } catch {
+    return dateString;
+  }
+};
+
+// Colores para tipos
+const typeColors: Record<string, string> = {
+  "MENCION": "bg-gradient-to-r from-blue-500 to-cyan-500",
+  "SPOT": "bg-gradient-to-r from-green-500 to-emerald-500",
+};
+
+// Colores para ciudades
+const cityColors: Record<string, string> = {
+  "Bogota": "bg-gradient-to-r from-blue-500 to-indigo-500",
+  "Medellin": "bg-gradient-to-r from-green-500 to-teal-500",
+  "Cali": "bg-gradient-to-r from-yellow-500 to-orange-500",
+  "Barranquilla": "bg-gradient-to-r from-red-500 to-pink-500",
+  "Cartagena": "bg-gradient-to-r from-purple-500 to-pink-500",
+};
 
 interface EventsRankingProps {
   selectedCity?: string;
-  selectedGenre?: string;
+  selectedType?: string;
   selectedVenue?: string;
   sortBy?: string;
 }
 
-const genreColors: Record<string, string> = {
-  "Urbano": "bg-gradient-to-r from-purple-500 to-pink-500",
-  "Regional": "bg-gradient-to-r from-orange-500 to-red-500",
-  "Pop": "bg-gradient-to-r from-pink-500 to-purple-500",
-  "Rock": "bg-gradient-to-r from-gray-700 to-gray-900",
-  "Balada": "bg-gradient-to-r from-rose-500 to-pink-500",
-  "Clásica": "bg-gradient-to-r from-purple-500 to-indigo-500",
-};
-
-export const EventsRanking = ({ 
+export const EventsRanking = ({
   selectedCity = "todos",
-  selectedGenre = "todos", 
+  selectedType = "todos",
   selectedVenue = "todos",
-  sortBy = "impact" 
+  sortBy = "date"
 }: EventsRankingProps) => {
   const navigate = useNavigate();
+  const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredAndSortedEvents = useMemo(() => {
-    let filtered = realEventsDatabase;
-    
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        const data = await getMentionsResume();
+        setDetecciones(data.ultimasDetecciones);
+        setError(null);
+      } catch (err) {
+        console.error("Error fetching data:", err);
+        setError("Error al cargar los datos. Por favor, intente nuevamente.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+    // Refrescar automáticamente cada 15 minutos
+    const interval = setInterval(fetchData, 900000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Filtrar y ordenar las detecciones
+  const filteredAndSortedDetecciones = useMemo(() => {
+    let filtered = [...detecciones];
+
     // Aplicar filtros
-    if (selectedCity !== "todos" && selectedCity !== "CDMX") {
-      filtered = filtered.filter(event => event.city === selectedCity);
+    if (selectedCity !== "todos") {
+      filtered = filtered.filter(det => det.Ciudad === selectedCity);
     }
-    if (selectedGenre !== "todos") {
-      filtered = filtered.filter(event => event.genre === selectedGenre);
+
+    if (selectedType !== "todos") {
+      filtered = filtered.filter(det => det.Tipo === selectedType);
     }
+
     if (selectedVenue !== "todos") {
-      filtered = filtered.filter(event => event.venue === selectedVenue);
+      filtered = filtered.filter(det => det.Venue === selectedVenue);
     }
-    
-    // Calcular total
-    const withTotal = filtered.map(event => ({
-      ...event,
-      total: event.spots + event.mentions
-    }));
 
     // Ordenar
     if (sortBy === "date") {
-      return withTotal.sort((a, b) => new Date(a.dateISO).getTime() - new Date(b.dateISO).getTime());
+      return filtered.sort((a, b) => new Date(b.Hora).getTime() - new Date(a.Hora).getTime());
     }
-    
-    if (sortBy === "capacity") {
-      return withTotal.sort((a, b) => (b.capacity || 0) - (a.capacity || 0));
-    }
-    
-    if (sortBy === "spots") {
-      return withTotal.sort((a, b) => b.spots - a.spots);
-    }
-    
-    if (sortBy === "mentions") {
-      return withTotal.sort((a, b) => b.mentions - a.mentions);
-    }
-    
-    if (sortBy === "total") {
-      return withTotal.sort((a, b) => b.total - a.total);
-    }
-    
-    if (sortBy === "reach") {
-      return withTotal.sort((a, b) => {
-        const reachA = parseFloat((a.reach || "0").replace(/[KM]/g, '')) * ((a.reach || "").includes('M') ? 1000 : 1);
-        const reachB = parseFloat((b.reach || "0").replace(/[KM]/g, '')) * ((b.reach || "").includes('M') ? 1000 : 1);
-        return reachB - reachA;
-      });
-    }
-    
-    return withTotal.sort((a, b) => b.total - a.total);
-  }, [selectedCity, selectedGenre, selectedVenue, sortBy]);
 
-  const renderEventCards = (events: typeof filteredAndSortedEvents) => (
+    if (sortBy === "artist") {
+      return filtered.sort((a, b) => a.Artista.localeCompare(b.Artista));
+    }
+
+    if (sortBy === "city") {
+      return filtered.sort((a, b) => a.Ciudad.localeCompare(b.Ciudad));
+    }
+
+    if (sortBy === "venue") {
+      return filtered.sort((a, b) => (a.Venue || "").localeCompare(b.Venue || ""));
+    }
+
+    if (sortBy === "type") {
+      return filtered.sort((a, b) => a.Tipo.localeCompare(b.Tipo));
+    }
+
+    // Por defecto: ordenar por fecha (más reciente primero)
+    return filtered.sort((a, b) => new Date(b.Hora).getTime() - new Date(a.Hora).getTime());
+  }, [detecciones, selectedCity, selectedType, selectedVenue, sortBy]);
+
+  // Función para obtener la letra inicial del artista
+  const getInitial = (artista: string) => {
+    return artista.charAt(0).toUpperCase();
+  };
+
+  // Función para generar un color basado en la letra inicial
+  const getColorFromInitial = (initial: string) => {
+    const colors = [
+      "bg-gradient-to-br from-blue-500 to-cyan-500",
+      "bg-gradient-to-br from-purple-500 to-pink-500",
+      "bg-gradient-to-br from-green-500 to-emerald-500",
+      "bg-gradient-to-br from-orange-500 to-red-500",
+      "bg-gradient-to-br from-indigo-500 to-blue-500",
+      "bg-gradient-to-br from-yellow-500 to-amber-500",
+      "bg-gradient-to-br from-pink-500 to-rose-500",
+      "bg-gradient-to-br from-teal-500 to-green-500",
+    ];
+
+    const index = initial.charCodeAt(0) % colors.length;
+    return colors[index];
+  };
+
+  // Renderizado para móvil (cards)
+  const renderDeteccionCards = (detecciones: Deteccion[]) => (
     <div className="grid gap-4 md:hidden">
-      {events.map((event, index) => (
-          <Card 
-            key={event.id}
+      {detecciones.map((det, index) => {
+        const initial = getInitial(det.Artista);
+        const colorClass = getColorFromInitial(initial);
+
+        return (
+          <Card
+            key={det.DeteccionID}
             className="group hover-lift overflow-hidden border-0 shadow-lg animate-fade-in cursor-pointer"
             style={{ animationDelay: `${index * 100}ms` }}
-            onClick={() => navigate(`/event/${event.id}`)}
+            onClick={() => navigate(`/artist/${encodeURIComponent(det.Artista)}`)}
           >
-            <div className="relative h-48 overflow-hidden">
-              <img 
-                src={event.image} 
-                alt={event.name}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110"
-              />
-              <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent" />
-              <div className="absolute top-3 left-3 flex items-center gap-2">
-                <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center shadow-lg">
-                  <span className="text-2xl font-bold bg-gradient-to-br from-primary to-secondary bg-clip-text text-transparent">
-                    {index + 1}
-                  </span>
+            <CardContent className="p-4">
+              <div className="flex items-start gap-3 mb-3">
+                {/* Placeholder con letra del artista */}
+                <div className={`w-16 h-16 rounded-full ${colorClass} flex items-center justify-center text-white font-bold text-2xl shadow-lg flex-shrink-0`}>
+                  {initial}
                 </div>
-                {index === 0 && (
-                  <Badge className={`${genreColors[event.genre] || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 gap-1`}>
-                    <Sparkles className="h-3 w-3" />
-                    Top
+
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-1">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-xs shadow-md">
+                      {index + 1}
+                    </div>
+                    {index === 0 && (
+                      <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 gap-1 text-xs">
+                        <Sparkles className="h-3 w-3" />
+                        Reciente
+                      </Badge>
+                    )}
+                  </div>
+
+                  <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors">
+                    {det.Artista}
+                  </h3>
+                  <p className="text-sm text-muted-foreground">{det.Emisora}</p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {det.Ciudad} • {formatDate(det.Hora)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mb-3">
+                <div className="flex items-center gap-2 mb-2">
+                  <Badge className={`${typeColors[det.Tipo] || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 text-xs`}>
+                    {det.Tipo}
                   </Badge>
+                  <Badge className={`${cityColors[det.Ciudad] || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 text-xs`}>
+                    {det.Ciudad}
+                  </Badge>
+                </div>
+
+                {det.Venue && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">{det.Venue}</span>
+                  </div>
                 )}
               </div>
-              <Badge className={`absolute top-3 right-3 ${genreColors[event.genre] || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0`}>
-                {event.genre}
-              </Badge>
-            </div>
-            <CardContent className="p-4">
+
               <div className="mb-3">
-                <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors">
-                  {event.name}
-                </h3>
-                <p className="text-sm text-muted-foreground">{event.artist}</p>
-                <p className="text-xs text-muted-foreground mt-1">
-                  {event.city} • {event.venue} • {event.date}
+                <div className="text-xs text-muted-foreground mb-1">Contexto</div>
+                <p className="text-sm line-clamp-2">
+                  {det.Contexto || "Sin contexto disponible"}
                 </p>
               </div>
-              
-              <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 mb-3 glow-primary">
-                <div className="text-xs font-medium text-primary">Impacto Total</div>
-                <div className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                  {event.total}
+
+              <div className="flex items-center justify-between text-sm">
+                <div className="text-muted-foreground">
+                  {formatDate(det.Hora)}
+                </div>
+                <div className="flex items-center gap-1 text-primary font-medium">
+                  Ver artista
+                  <ArrowRight className="h-4 w-4" />
                 </div>
               </div>
-              
-              <div className="grid grid-cols-3 gap-2 mb-3">
-                <div className="text-center">
-                  <div className="text-xs text-muted-foreground">Spots</div>
-                  <div className="text-sm font-bold text-foreground">{event.spots}</div>
-                </div>
-                <div className="text-center border-x border-border">
-                  <div className="text-xs text-muted-foreground">Menciones</div>
-                  <div className="text-sm font-bold text-foreground">{event.mentions}</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-xs text-muted-foreground">Alcance</div>
-                  <div className="text-sm font-bold text-foreground">{event.reach || "N/A"}</div>
-                </div>
-              </div>
-              
-              {event.capacity && (
-                <div className="flex items-center justify-between text-xs">
-                  <span className="text-muted-foreground">Capacidad</span>
-                  <span className="font-semibold text-foreground">{event.capacity.toLocaleString()} asistentes</span>
-                </div>
-              )}
             </CardContent>
           </Card>
-        ))}
+        );
+      })}
     </div>
   );
 
-  const renderEventTable = (events: typeof filteredAndSortedEvents) => (
+  // Renderizado para desktop (tabla)
+  const renderDeteccionTable = (detecciones: Deteccion[]) => (
     <div className="hidden md:block overflow-auto">
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent border-b-2">
             <TableHead className="w-12 font-bold">#</TableHead>
-            <TableHead className="font-bold">Evento / Artista</TableHead>
+            <TableHead className="font-bold">Artista</TableHead>
+            <TableHead className="font-bold">Emisora</TableHead>
             <TableHead className="font-bold">Ciudad</TableHead>
             <TableHead className="font-bold">Venue</TableHead>
-            <TableHead className="font-bold">Capacidad</TableHead>
-            <TableHead className="font-bold">Fecha</TableHead>
-            <TableHead className="text-right font-bold">Spots</TableHead>
-            <TableHead className="text-right font-bold">Menciones</TableHead>
-            <TableHead className="text-right font-bold">Total</TableHead>
-            <TableHead className="text-right font-bold">Alcance</TableHead>
+            <TableHead className="font-bold">Tipo</TableHead>
+            <TableHead className="font-bold">Contexto</TableHead>
+            <TableHead className="font-bold">Fecha y Hora</TableHead>
             <TableHead className="w-20"></TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {events.map((event, index) => (
-            <TableRow 
-              key={event.id}
-              className="group hover:bg-muted/50 cursor-pointer transition-all animate-fade-in"
-              style={{ animationDelay: `${index * 50}ms` }}
-              onClick={() => navigate(`/event/${event.id}`)}
-            >
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-sm shadow-md">
-                    {index + 1}
-                  </div>
-                  {index === 0 && (
-                    <Sparkles className="h-4 w-4 text-primary animate-pulse" />
-                  )}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-3">
-                  <img 
-                    src={event.image} 
-                    alt={event.name}
-                    className="w-12 h-12 rounded-lg object-cover shadow-sm"
-                  />
-                  <div>
-                    <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                      {event.name}
+          {detecciones.map((det, index) => {
+            const initial = getInitial(det.Artista);
+            const colorClass = getColorFromInitial(initial);
+
+            return (
+              <TableRow
+                key={det.DeteccionID}
+                className="group hover:bg-muted/50 cursor-pointer transition-all animate-fade-in"
+                style={{ animationDelay: `${index * 50}ms` }}
+                onClick={() => navigate(`/artist/${encodeURIComponent(det.Artista)}`)}
+              >
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center text-white font-bold text-sm shadow-md">
+                      {index + 1}
                     </div>
-                    <div className="text-sm text-muted-foreground flex items-center gap-2">
-                      {event.artist}
-                      <Badge variant="outline" className={`${genreColors[event.genre] || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 text-xs`}>
-                        {event.genre}
-                      </Badge>
+                    {index === 0 && (
+                      <Sparkles className="h-4 w-4 text-primary animate-pulse" />
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-3">
+                    {/* Placeholder con letra del artista */}
+                    <div className={`w-12 h-12 rounded-full ${colorClass} flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0`}>
+                      {initial}
+                    </div>
+                    <div>
+                      <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
+                        {det.Artista}
+                      </div>
                     </div>
                   </div>
-                </div>
-              </TableCell>
-              <TableCell className="text-sm">{event.city}</TableCell>
-              <TableCell className="text-sm">{event.venue}</TableCell>
-              <TableCell className="text-sm font-semibold text-muted-foreground">
-                {event.capacity ? event.capacity.toLocaleString() : "N/A"}
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-1 text-sm">
-                  <Calendar className="h-3 w-3 text-muted-foreground" />
-                  {event.date}
-                </div>
-              </TableCell>
-              <TableCell className="text-right">
-                <span className="px-2 py-1 rounded-md bg-primary/10 text-primary font-semibold text-sm">
-                  {event.spots}
-                </span>
-              </TableCell>
-              <TableCell className="text-right">
-                <span className="px-2 py-1 rounded-md bg-secondary/10 text-secondary font-semibold text-sm">
-                  {event.mentions}
-                </span>
-              </TableCell>
-              <TableCell className="text-right">
-                <div className="flex items-center justify-end gap-1">
-                  <TrendingUp className="h-4 w-4 text-green-500" />
-                  <span className="font-bold text-lg bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
-                    {event.total}
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell className="text-right font-semibold">{event.reach || "N/A"}</TableCell>
-              <TableCell>
-                <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
-              </TableCell>
-            </TableRow>
-          ))}
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Radio className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{det.Emisora}</span>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className={`${cityColors[det.Ciudad] || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 text-xs`}>
+                    {det.Ciudad}
+                  </Badge>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2 max-w-[150px]">
+                    {det.Venue ? (
+                      <>
+                        <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm truncate" title={det.Venue}>
+                          {det.Venue}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">No especificado</span>
+                    )}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <Badge className={`${typeColors[det.Tipo] || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 text-xs`}>
+                    {det.Tipo}
+                  </Badge>
+                </TableCell>
+                <TableCell className="max-w-xs">
+                  <p className="text-sm line-clamp-2">
+                    {det.Contexto || "Sin contexto disponible"}
+                  </p>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-1 text-sm">
+                    <Calendar className="h-3 w-3 text-muted-foreground" />
+                    {formatDate(det.Hora)}
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                </TableCell>
+              </TableRow>
+            );
+          })}
         </TableBody>
       </Table>
     </div>
   );
+
+  if (loading) {
+    return (
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-8 text-center">
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <Music className="h-12 w-12 text-primary animate-pulse" />
+            <p className="text-lg text-muted-foreground">Cargando últimas menciones...</p>
+            <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
+              <div className="h-full bg-gradient-to-r from-primary to-secondary animate-pulse" style={{ width: '60%' }} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card className="border-0 shadow-lg">
+        <CardContent className="p-8 text-center">
+          <div className="flex flex-col items-center justify-center space-y-4">
+            <Headphones className="h-12 w-12 text-red-500" />
+            <p className="text-lg text-red-600">{error}</p>
+            <button
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary/90 transition-colors"
+            >
+              Reintentar
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <div className="space-y-2 p-1 sm:p-2">
@@ -264,45 +369,48 @@ export const EventsRanking = ({
           <div className="flex items-center justify-between">
             <CardTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2">
               <Music className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-              Ranking de Eventos Musicales
+              Ranking de Eventos
               <Badge variant="outline" className="ml-2 bg-primary/10 text-primary border-primary/20">
-                {filteredAndSortedEvents.length} eventos
+                {filteredAndSortedDetecciones.length} detecciones
               </Badge>
             </CardTitle>
           </div>
           <p className="text-sm text-muted-foreground">
-            🎵 Eventos musicales reales - Guadalajara y Monterrey
+            🎤 Menciones y spots detectados en emisoras de radio - Datos en tiempo real
           </p>
         </CardHeader>
         <CardContent className="p-1 sm:p-4">
           <Tabs defaultValue="all" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="all" className="text-xs sm:text-sm">
-                Todos los Eventos
+                Todas
               </TabsTrigger>
               <TabsTrigger value="spots" className="text-xs sm:text-sm">
-                Solo Spots Comerciales
+                Spots Comerciales
+              </TabsTrigger>
+              <TabsTrigger value="mentions" className="text-xs sm:text-sm">
+                Menciones
               </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="all" className="space-y-4">
-              {renderEventCards(filteredAndSortedEvents)}
-              {renderEventTable(filteredAndSortedEvents)}
-              
-              {filteredAndSortedEvents.length === 0 && (
+              {renderDeteccionCards(filteredAndSortedDetecciones)}
+              {renderDeteccionTable(filteredAndSortedDetecciones)}
+
+              {filteredAndSortedDetecciones.length === 0 && (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground text-lg">
-                    No se encontraron eventos con los filtros seleccionados
+                    No se encontraron detecciones con los filtros seleccionados
                   </p>
                 </div>
               )}
             </TabsContent>
-            
+
             <TabsContent value="spots" className="space-y-4">
-              {renderEventCards(filteredAndSortedEvents.filter(e => e.isSpot))}
-              {renderEventTable(filteredAndSortedEvents.filter(e => e.isSpot))}
-              
-              {filteredAndSortedEvents.filter(e => e.isSpot).length === 0 && (
+              {renderDeteccionCards(filteredAndSortedDetecciones.filter(d => d.Tipo === "SPOT"))}
+              {renderDeteccionTable(filteredAndSortedDetecciones.filter(d => d.Tipo === "SPOT"))}
+
+              {filteredAndSortedDetecciones.filter(d => d.Tipo === "SPOT").length === 0 && (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground text-lg">
                     No se encontraron spots comerciales con los filtros seleccionados
@@ -310,7 +418,35 @@ export const EventsRanking = ({
                 </div>
               )}
             </TabsContent>
+
+            <TabsContent value="mentions" className="space-y-4">
+              {renderDeteccionCards(filteredAndSortedDetecciones.filter(d => d.Tipo === "MENCION"))}
+              {renderDeteccionTable(filteredAndSortedDetecciones.filter(d => d.Tipo === "MENCION"))}
+
+              {filteredAndSortedDetecciones.filter(d => d.Tipo === "MENCION").length === 0 && (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground text-lg">
+                    No se encontraron menciones con los filtros seleccionados
+                  </p>
+                </div>
+              )}
+            </TabsContent>
           </Tabs>
+
+          {filteredAndSortedDetecciones.length > 0 && (
+            <div className="mt-6 pt-4 border-t border-border">
+              <div className="flex items-center justify-between">
+                <div className="text-sm text-muted-foreground flex items-center gap-2">
+                  <Radio className="h-4 w-4" />
+                  Total emisoras monitoreadas: {detecciones.length > 0 ?
+                    new Set(detecciones.map(d => d.EmisoraID)).size : 0}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                  Mostrando {filteredAndSortedDetecciones.length} de {detecciones.length} detecciones
+                </div>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

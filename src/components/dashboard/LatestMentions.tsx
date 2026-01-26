@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowRight, Sparkles, Calendar, Music, Headphones, Radio, MessageSquare, Play } from "lucide-react";
+import { ArrowRight, Sparkles, Calendar, Music, Headphones, Radio, MessageSquare, Play, MapPin } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { formatDistanceToNow, format } from "date-fns";
@@ -55,9 +55,9 @@ export const LatestMentions = ({
         const fetchMentions = async () => {
             try {
                 setLoading(true);
-                const data = await fetch('https://backevent.monitorlatino.com/api/dashboard/resumen');
-                const jsonData = await data.json();
-                setDetecciones(jsonData.ultimasDetecciones);
+                const data = await getMentionsResume();
+                setDetecciones(data.ultimasDetecciones);
+                console.log("Fetched mentions:", data.ultimasDetecciones);
                 setError(null);
             } catch (err) {
                 console.error("Error fetching mentions:", err);
@@ -68,8 +68,8 @@ export const LatestMentions = ({
         };
 
         fetchMentions();
-        // Refrescar automáticamente cada 60 segundos
-        const interval = setInterval(fetchMentions, 60000);
+        // Refrescar automáticamente cada 15 minutos
+        const interval = setInterval(fetchMentions, 900000);
         return () => clearInterval(interval);
     }, []);
 
@@ -124,16 +124,11 @@ export const LatestMentions = ({
                         </div>
 
                         <div className="mb-3">
-                            <div className="text-xs text-muted-foreground mb-1">Confianza</div>
+                            <div className="text-xs text-muted-foreground mb-1">Venue / Lugar</div>
                             <div className="flex items-center gap-2">
-                                <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden">
-                                    <div
-                                        className={`h-full ${confidenceColors(det.Confidence)}`}
-                                        style={{ width: `${det.Confidence * 100}%` }}
-                                    />
-                                </div>
-                                <span className="text-xs font-bold">
-                                    {(det.Confidence * 100).toFixed(1)}%
+                                <MapPin className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm font-medium">
+                                    {det.Venue || "No especificado"}
                                 </span>
                             </div>
                         </div>
@@ -169,8 +164,8 @@ export const LatestMentions = ({
                         <TableHead className="font-bold">Artista</TableHead>
                         <TableHead className="font-bold">Emisora</TableHead>
                         <TableHead className="font-bold">Ciudad</TableHead>
+                        <TableHead className="font-bold">Venue</TableHead>
                         <TableHead className="font-bold">Tipo</TableHead>
-                        <TableHead className="font-bold">Confianza</TableHead>
                         <TableHead className="font-bold">Hora</TableHead>
                         <TableHead className="font-bold">Contexto</TableHead>
                         <TableHead className="w-24 font-bold text-center">Audio</TableHead>
@@ -212,22 +207,15 @@ export const LatestMentions = ({
                                 </Badge>
                             </TableCell>
                             <TableCell>
+                                <div className="flex items-center gap-2">
+                                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                                    <span className="text-sm">{det.Venue || "No especificado"}</span>
+                                </div>
+                            </TableCell>
+                            <TableCell>
                                 <Badge className={`${typeColors[det.Tipo] || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 text-xs`}>
                                     {det.Tipo}
                                 </Badge>
-                            </TableCell>
-                            <TableCell>
-                                <div className="flex items-center gap-2">
-                                    <div className="flex-1 bg-gray-200 rounded-full h-2 overflow-hidden w-16">
-                                        <div
-                                            className={`h-full ${confidenceColors(det.Confidence)}`}
-                                            style={{ width: `${det.Confidence * 100}%` }}
-                                        />
-                                    </div>
-                                    <span className="text-xs font-bold">
-                                        {(det.Confidence * 100).toFixed(0)}%
-                                    </span>
-                                </div>
                             </TableCell>
                             <TableCell>
                                 <div className="flex items-center gap-1 text-sm">

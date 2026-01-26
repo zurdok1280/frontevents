@@ -11,8 +11,11 @@ export interface Deteccion {
   EmisoraID: number;
   Emisora: string;
   Ciudad: string;
+  Pais: string;
   Artista: string;
   Tipo: string;
+  Venue: string;
+  FechaEvento: string;
   Confidence: number;
   Hora: string;
   AudioUrl: string;
@@ -38,7 +41,7 @@ export interface MentionsResumeResponse {
 // Función genérica para realizar peticiones HTTP
 async function fetchAPI<T>(
   endpoint: string,
-  options?: RequestInit
+  options?: RequestInit,
 ): Promise<T> {
   const url = `${BASE_URL}${endpoint}`;
 
