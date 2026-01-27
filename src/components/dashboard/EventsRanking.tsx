@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getMentionsResume, Deteccion } from "@/lib/api";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 
 // Formatear fecha
 const formatDate = (dateString: string) => {
@@ -229,7 +230,8 @@ export const EventsRanking = ({
       <Table>
         <TableHeader>
           <TableRow className="hover:bg-transparent border-b-2">
-            <TableHead className="w-12 font-bold">#</TableHead>
+            <TableHead className="w-12 font-bold">Rank</TableHead>
+            <TableHead className="font-bold">Evento</TableHead>
             <TableHead className="font-bold">Artista</TableHead>
             <TableHead className="font-bold">Emisora</TableHead>
             <TableHead className="font-bold">Ciudad</TableHead>
@@ -242,7 +244,7 @@ export const EventsRanking = ({
         </TableHeader>
         <TableBody>
           {detecciones.map((det, index) => {
-            const initial = getInitial(det.Artista);
+            const initial = getInitial(det.NombreEvento || det.Artista);
             const colorClass = getColorFromInitial(initial);
 
             return (
@@ -270,9 +272,15 @@ export const EventsRanking = ({
                     </div>
                     <div>
                       <div className="font-semibold text-foreground group-hover:text-primary transition-colors">
-                        {det.Artista}
+                        {det.NombreEvento || `Evento de ${det.Artista}`}
                       </div>
                     </div>
+                  </div>
+                </TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Radio className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm">{det.Artista}</span>
                   </div>
                 </TableCell>
                 <TableCell>
@@ -305,10 +313,40 @@ export const EventsRanking = ({
                     {det.Tipo}
                   </Badge>
                 </TableCell>
+                {/*<TableCell className="max-w-xs">
+                  <div className="text-sm line-clamp-2">
+                    {det.Contexto ? (
+                      <>
+                        <span className="text-sm whitespace-pre-wrap" title={det.Contexto}>
+                          {det.Contexto}
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-sm text-muted-foreground">Sin contexto disponible</span>
+                    )}
+                  </div>
+                </TableCell>*/}
                 <TableCell className="max-w-xs">
-                  <p className="text-sm line-clamp-2">
-                    {det.Contexto || "Sin contexto disponible"}
-                  </p>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <div className="cursor-help">
+                          <p className="text-sm line-clamp-2">
+                            {det.Contexto || "Sin contexto disponible"}
+                          </p>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent
+                        className="max-w-md max-h-64 overflow-y-auto p-4"
+                        side="left"
+                        align="center"
+                      >
+                        <div className="text-sm whitespace-pre-wrap">
+                          {det.Contexto || "Sin contexto disponible"}
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1 text-sm">

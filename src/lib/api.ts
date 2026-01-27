@@ -16,6 +16,7 @@ export interface Deteccion {
   Tipo: string;
   Venue: string;
   FechaEvento: string;
+  NombreEvento: string;
   Confidence: number;
   Hora: string;
   AudioUrl: string;

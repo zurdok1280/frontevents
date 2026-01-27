@@ -92,7 +92,7 @@ export const LatestMentions = ({
                     key={det.DeteccionID}
                     className="group hover-lift overflow-hidden border-0 shadow-lg animate-fade-in cursor-pointer"
                     style={{ animationDelay: `${index * 100}ms` }}
-                    onClick={() => navigate(`/detection/${det.DeteccionID}`)}
+                    onClick={() => navigate(`/artist/${encodeURIComponent(det.Artista)}`)}
                 >
                     <CardContent className="p-4">
                         <div className="flex items-start justify-between mb-3">
@@ -178,7 +178,7 @@ export const LatestMentions = ({
                             key={det.DeteccionID}
                             className="group hover:bg-muted/50 cursor-pointer transition-all animate-fade-in"
                             style={{ animationDelay: `${index * 50}ms` }}
-                            onClick={() => navigate(`/detection/${det.DeteccionID}`)}
+                            onClick={() => navigate(`/artist/${encodeURIComponent(det.Artista)}`)}
                         >
                             <TableCell>
                                 <div className="flex items-center gap-2">
