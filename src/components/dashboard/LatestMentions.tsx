@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -50,6 +50,8 @@ export const LatestMentions = ({
     const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [currentlyPlaying, setCurrentlyPlaying] = useState<number | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
 
     useEffect(() => {
         const fetchMentions = async () => {
@@ -84,6 +86,52 @@ export const LatestMentions = ({
         console.log("Reproduciendo audio:", audioUrl);
         window.open(audioUrl, '_blank');
     };
+
+    const handlePlayPreview = useCallback(
+        (trackRank: number, audioUrl: string) => {
+            console.log("handlePlayPreview called for:", trackRank, audioUrl);
+
+            // Si la misma canción está sonando, pausar y limpiar
+            if (currentlyPlaying === trackRank) {
+                if (audioRef.current) {
+                    audioRef.current.pause();
+                    audioRef.current.currentTime = 0; // reinicia a inicio
+                    audioRef.current = null;
+                }
+                setCurrentlyPlaying(null);
+                return;
+            }
+
+            // Si hay una canción sonando, detenerla
+            if (audioRef.current) {
+                audioRef.current.pause();
+                audioRef.current.currentTime = 0;
+            }
+
+            // Crear y reproducir nueva canción
+            const audio = new Audio(audioUrl); // aquí se asigna la URL real del MP3
+            audioRef.current = audio;
+
+            // Cuando termine el audio, limpiar estado
+            audio.addEventListener("ended", () => {
+                setCurrentlyPlaying(null);
+                audioRef.current = null;
+            });
+
+            // Intentar reproducir (algunos navegadores requieren interacción de usuario)
+            audio
+                .play()
+                .then(() => {
+                    setCurrentlyPlaying(trackRank);
+                })
+                .catch((err) => {
+                    console.error("Error al reproducir el audio:", err);
+                    setCurrentlyPlaying(null);
+                    audioRef.current = null;
+                });
+        },
+        [currentlyPlaying]
+    );
 
     const renderDeteccionCards = (detecciones: Deteccion[]) => (
         <div className="grid gap-4 md:hidden">
@@ -231,7 +279,13 @@ export const LatestMentions = ({
                             <TableCell className="text-center">
                                 {det.AudioUrl && (
                                     <button
-                                        onClick={(e) => handlePlayAudio(det.AudioUrl, e)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            handlePlayPreview(
+                                                det.DeteccionID,
+                                                det.AudioUrl,
+                                            );
+                                        }}
                                         className="inline-flex items-center justify-center w-10 h-10 rounded-full bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 text-primary hover:bg-primary/20 transition-colors group"
                                         title="Escuchar audio"
                                     >
