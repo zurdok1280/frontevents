@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowRight, Sparkles, Calendar, TrendingUp, Music, Radio, Headphones } from "lucide-react";
+import { ArrowRight, Sparkles, Calendar, TrendingUp, Music, Radio, Headphones, MapPin } from "lucide-react";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -154,7 +154,7 @@ export const EventsRanking = ({
             key={event.EventGroupID}
             className="group hover-lift overflow-hidden border-0 shadow-lg animate-fade-in cursor-pointer"
             style={{ animationDelay: `${index * 100}ms` }}
-            onClick={() => navigate(`/event/${event.EventGroupID}`)}
+            onClick={() => navigate(`/artist/${encodeURIComponent(event.Artista)}`)}
           >
             <CardContent className="p-4">
               <div className="flex items-start gap-3 mb-3">
@@ -261,7 +261,7 @@ export const EventsRanking = ({
                 key={event.EventGroupID}
                 className="group hover:bg-muted/50 cursor-pointer transition-all animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` }}
-                onClick={() => navigate(`/event/${event.EventGroupID}`)}
+
               >
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -294,7 +294,14 @@ export const EventsRanking = ({
                     {event.Ciudad}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-sm">{event.Venue || "No especificado"}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-medium max-w-[150px] truncate" title={event.Venue || "No especificado"}>
+                      {event.Venue || "No especificado"}
+                    </span>
+                  </div>
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-1 text-sm">
                     <Calendar className="h-3 w-3 text-muted-foreground" />
@@ -328,7 +335,7 @@ export const EventsRanking = ({
                 <TableCell className="text-right font-semibold">
                   {event.Alcance.toLocaleString()}
                 </TableCell>
-                <TableCell>
+                <TableCell onClick={() => navigate(`/artist/${encodeURIComponent(event.Artista)}`)}>
                   <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                 </TableCell>
               </TableRow>

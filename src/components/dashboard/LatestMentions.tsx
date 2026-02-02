@@ -42,7 +42,7 @@ const confidenceColors = (confidence: number) => {
 export const LatestMentions = ({
     selectedCity = "todos",
     selectedType = "todos",
-    limit = 10
+    limit = 100
 }: LatestMentionsProps) => {
     const navigate = useNavigate();
     const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
@@ -224,7 +224,6 @@ export const LatestMentions = ({
                             key={det.DeteccionID}
                             className="group hover:bg-muted/50 cursor-pointer transition-all animate-fade-in"
                             style={{ animationDelay: `${index * 50}ms` }}
-                            onClick={() => navigate(`/artist/${encodeURIComponent(det.Artista)}`)}
                         >
                             <TableCell>
                                 <div className="flex items-center gap-2">
@@ -255,7 +254,9 @@ export const LatestMentions = ({
                             <TableCell>
                                 <div className="flex items-center gap-2">
                                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                                    <span className="text-sm">{det.Venue || "No especificado"}</span>
+                                    <span className="text-sm font-medium max-w-[150px] truncate" title={det.Venue || "No especificado"}>
+                                        {det.Venue || "No especificado"}
+                                    </span>
                                 </div>
                             </TableCell>
                             <TableCell>
@@ -270,7 +271,7 @@ export const LatestMentions = ({
                                 </div>
                             </TableCell>
                             <TableCell className="max-w-xs">
-                                <p className="text-sm line-clamp-2">
+                                <p className="text-sm line-clamp-2" title={det.Contexto || "Sin contexto disponible"}>
                                     {det.Contexto || "Sin contexto disponible"}
                                 </p>
                             </TableCell>
@@ -291,8 +292,10 @@ export const LatestMentions = ({
                                     </button>
                                 )}
                             </TableCell>
-                            <TableCell>
+                            <TableCell
+                                onClick={() => navigate(`/artist/${encodeURIComponent(det.Artista)}`)}>
                                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+
                             </TableCell>
                         </TableRow>
                     ))}
@@ -349,7 +352,7 @@ export const LatestMentions = ({
                             </Badge>
                         </CardTitle>
                         <div className="text-xs text-muted-foreground">
-                            Actualizado hace unos segundos
+                            Actualizado cada 15 minutos
                         </div>
                     </div>
                     <p className="text-sm text-muted-foreground">

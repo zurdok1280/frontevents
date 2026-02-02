@@ -343,7 +343,7 @@ export const LatestMentionsPerArtist = ({
                                 </div>
                             </TableCell>
                             <TableCell className="max-w-xs">
-                                <p className="text-sm line-clamp-2">
+                                <p className="text-sm line-clamp-2" title={det.Contexto || "No especificado"}>
                                     {det.Contexto || "Sin contexto disponible"}
                                 </p>
                             </TableCell>
