@@ -31,8 +31,6 @@ interface LatestMentionsProps {
 const typeColors: Record<string, string> = {
     "MENCION": "bg-gradient-to-r from-blue-500 to-cyan-500",
     "SPOT": "bg-gradient-to-r from-green-500 to-emerald-500",
-    "CANCION": "bg-gradient-to-r from-purple-500 to-pink-500",
-    "ENTREVISTA": "bg-gradient-to-r from-orange-500 to-red-500",
 };
 
 const confidenceColors = (confidence: number) => {
@@ -162,7 +160,7 @@ export const LatestMentions = ({
                                 </h3>
                                 <p className="text-sm text-muted-foreground">{det.Emisora}</p>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    {det.Ciudad} • {formatTimeAgo(det.Hora)}
+                                    {det.Ciudad} • {formatTimeAgo(det.FechaDeteccion)}
                                 </p>
                             </div>
 
@@ -268,7 +266,7 @@ export const LatestMentions = ({
                             <TableCell>
                                 <div className="flex items-center gap-1 text-sm">
                                     <Calendar className="h-3 w-3 text-muted-foreground" />
-                                    <span className="text-xs">{formatTimeAgo(det.Hora)}</span>
+                                    <span className="text-xs">{formatTimeAgo(det.FechaDeteccion)}</span>
                                 </div>
                             </TableCell>
                             <TableCell className="max-w-xs">

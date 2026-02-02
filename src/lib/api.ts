@@ -18,11 +18,23 @@ export interface Deteccion {
   FechaEvento: string;
   NombreEvento: string;
   Confidence: number;
-  Hora: string;
+  FechaDeteccion: string;
   AudioUrl: string;
   Contexto: string;
 }
-
+// Interface para un evento en el top
+export interface TopEvento {
+  EventGroupID: number;
+  NombreEvento: string;
+  Artista: string;
+  Ciudad: string;
+  Venue: string;
+  Fecha: string;
+  Spots: number;
+  Menciones: number;
+  Total: number;
+  Alcance: number;
+}
 // Interface para un artista en el top
 export interface TopArtista {
   NombreOficial: string;
@@ -35,6 +47,7 @@ export interface MentionsResumeResponse {
   totalDetecciones: number;
   ultimasDetecciones: Deteccion[];
   topArtistas: TopArtista[];
+  topEventos: TopEvento[];
 }
 
 // ========== Funciones de API ==========

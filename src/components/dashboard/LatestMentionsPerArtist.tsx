@@ -154,7 +154,7 @@ export const LatestMentionsPerArtist = ({
             }
 
             // Crear y reproducir nueva canción
-            const audio = new Audio(audioUrl); // aquí se asigna la URL real del MP3
+            const audio = new Audio(audioUrl);
             audioRef.current = audio;
 
             // Cuando termine el audio, limpiar estado
@@ -230,7 +230,7 @@ export const LatestMentionsPerArtist = ({
                                 </h3>
                                 <p className="text-sm text-muted-foreground">{det.Emisora}</p>
                                 <p className="text-xs text-muted-foreground mt-1">
-                                    {det.Ciudad} • {formatTimeAgo(det.Hora)}
+                                    {det.Ciudad} • {formatTimeAgo(det.FechaDeteccion)}
                                 </p>
                             </div>
 
@@ -335,10 +335,10 @@ export const LatestMentionsPerArtist = ({
                                 <div className="flex flex-col gap-1">
                                     <div className="flex items-center gap-1 text-sm">
                                         <Calendar className="h-3 w-3 text-muted-foreground" />
-                                        {formatDate(det.Hora)}
+                                        {formatDate(det.FechaDeteccion)}
                                     </div>
                                     <div className="text-xs text-muted-foreground">
-                                        {formatTimeAgo(det.Hora)}
+                                        {formatTimeAgo(det.FechaDeteccion)}
                                     </div>
                                 </div>
                             </TableCell>
