@@ -1,10 +1,16 @@
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import logo from "@/assets/logo.png";
 import { useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { BarChart3 } from "lucide-react";
-import LoginIcon from '@mui/icons-material/Login';
+import LoginIcon from "@mui/icons-material/Login";
 import { LoginButton } from "./login/LoginButton";
 
 interface DashboardHeaderProps {
@@ -20,17 +26,29 @@ interface DashboardHeaderProps {
   onGenreChange: (genre: string) => void;
   onVenueChange: (venue: string) => void;
   onSortChange: (sort: string) => void;
+
+  // --- NUEVAS PROPS (Opcionales para que no truene si faltan) ---
+  countriesList?: string[];
+  citiesList?: string[];
+  venuesList?: string[];
 }
 
-const countries = ["México", "Estados Unidos", "Colombia", "Argentina", "Chile"];
-const citiesByCountry: Record<string, string[]> = {
-  "México": ["CDMX", "Guadalajara", "Monterrey", "Puebla", "Querétaro"],
-  "Estados Unidos": ["Los Angeles", "Miami", "New York", "Houston", "Chicago"],
-  "Colombia": ["Bogotá", "Medellín", "Cali", "Barranquilla"],
-  "Argentina": ["Buenos Aires", "Córdoba", "Rosario", "Mendoza"],
-  "Chile": ["Santiago", "Valparaíso", "Concepción", "Viña del Mar"],
-};
-const dateRanges = ["Últimos 7 días", "Últimos 14 días", "Últimos 30 días", "Este mes", "Mes anterior"];
+// Listas de respaldo (Fallback) por si la API falla o tarda en cargar
+const defaultCountries = [
+  "México",
+  "Estados Unidos",
+  "Colombia",
+  "Argentina",
+  "Chile",
+];
+const defaultDateRanges = [
+  "Todos",
+  "Últimos 7 días",
+  "Últimos 14 días",
+  "Últimos 30 días",
+  "Este mes",
+  "Mes anterior",
+];
 
 export const DashboardHeader = ({
   selectedCountry,
@@ -44,24 +62,23 @@ export const DashboardHeader = ({
   onDateRangeChange,
   onGenreChange,
   onVenueChange,
-  onSortChange
+  onSortChange,
+  // Recibimos las listas dinámicas
+  countriesList = [],
+  citiesList = [],
+  venuesList = [],
 }: DashboardHeaderProps) => {
   const navigate = useNavigate();
   const location = useLocation();
   const isReportsPage = location.pathname === "/reports";
-  const cities = citiesByCountry[selectedCountry] || [];
 
-  const venues = useMemo(() => [
-    "todos",
-    "Estadio Akron",
-    "Estadio BBVA",
-    "Arena VFG",
-    "Arena Monterrey",
-    "Auditorio Telmex",
-    "Auditorio",
-    "Palco, Teatro",
-    "Parque Fundidora"
-  ], []);
+  const countriesDisplay =
+    countriesList.length > 0 ? countriesList : defaultCountries;
+
+  const citiesDisplay = citiesList;
+
+  //Venues
+  const venuesDisplay = venuesList.length > 0 ? venuesList : ["todos"];
 
   return (
     <header className="border-b border-border bg-card sticky top-0 z-10">
@@ -70,8 +87,12 @@ export const DashboardHeader = ({
         <div className="flex items-center gap-2 sm:gap-3 flex-shrink-0">
           <img src={logo} alt="MonitorLatino" className="h-8 sm:h-12 w-auto" />
           <div className="flex flex-col">
-            <h1 className="text-lg sm:text-2xl font-bold text-foreground leading-tight">Concert Insights</h1>
-            <p className="text-xs sm:text-sm text-muted-foreground">Dashboard</p>
+            <h1 className="text-lg sm:text-2xl font-bold text-foreground leading-tight">
+              Concert Insights
+            </h1>
+            <p className="text-xs sm:text-sm text-muted-foreground">
+              Dashboard
+            </p>
           </div>
           <Button
             variant={isReportsPage ? "default" : "outline"}
@@ -80,7 +101,9 @@ export const DashboardHeader = ({
             className="flex items-center gap-1 ml-2"
           >
             <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">{isReportsPage ? "Eventos" : "Análisis"}</span>
+            <span className="hidden sm:inline">
+              {isReportsPage ? "Eventos" : "Análisis"}
+            </span>
           </Button>
         </div>
 
@@ -88,12 +111,14 @@ export const DashboardHeader = ({
         <div className="flex items-center gap-2">
           {/* All Filters in one line */}
           <div className="flex gap-1 items-center flex-shrink-0">
+            {/* PAÍS */}
             <Select value={selectedCountry} onValueChange={onCountryChange}>
-              <SelectTrigger className="bg-background border-border h-6 text-xs w-16 sm:w-20">
-                <SelectValue />
+              <SelectTrigger className="bg-background border-border h-6 text-xs w-16 sm:w-24">
+                <SelectValue placeholder="País" />
               </SelectTrigger>
               <SelectContent>
-                {countries.map((country) => (
+                <SelectItem value="Todos">Todos</SelectItem>
+                {countriesDisplay.map((country) => (
                   <SelectItem key={country} value={country}>
                     {country}
                   </SelectItem>
@@ -101,12 +126,14 @@ export const DashboardHeader = ({
               </SelectContent>
             </Select>
 
+            {/* CIUDAD */}
             <Select value={selectedCity} onValueChange={onCityChange}>
-              <SelectTrigger className="bg-background border-border h-6 text-xs w-16 sm:w-20">
-                <SelectValue />
+              <SelectTrigger className="bg-background border-border h-6 text-xs w-16 sm:w-24">
+                <SelectValue placeholder="Ciudad" />
               </SelectTrigger>
               <SelectContent>
-                {cities.map((city) => (
+                <SelectItem value="Todos">Todas</SelectItem>
+                {citiesDisplay.map((city) => (
                   <SelectItem key={city} value={city}>
                     {city}
                   </SelectItem>
@@ -114,12 +141,13 @@ export const DashboardHeader = ({
               </SelectContent>
             </Select>
 
+            {/* RANGO DE FECHAS */}
             <Select value={dateRange} onValueChange={onDateRangeChange}>
               <SelectTrigger className="bg-background border-border h-6 text-xs w-20 sm:w-28">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                {dateRanges.map((range) => (
+                {defaultDateRanges.map((range) => (
                   <SelectItem key={range} value={range}>
                     {range}
                   </SelectItem>
@@ -127,6 +155,7 @@ export const DashboardHeader = ({
               </SelectContent>
             </Select>
 
+            {/* GÉNERO (Este se mantiene estático por ahora) */}
             <Select value={selectedGenre} onValueChange={onGenreChange}>
               <SelectTrigger className="bg-background border-border h-6 text-xs w-20 sm:w-24">
                 <SelectValue />
@@ -142,12 +171,14 @@ export const DashboardHeader = ({
               </SelectContent>
             </Select>
 
+            {/* VENUE */}
             <Select value={selectedVenue} onValueChange={onVenueChange}>
-              <SelectTrigger className="bg-background border-border h-6 text-xs w-20 sm:w-24">
-                <SelectValue />
+              <SelectTrigger className="bg-background border-border h-6 text-xs w-20 sm:w-28">
+                <SelectValue placeholder="Venue" />
               </SelectTrigger>
               <SelectContent>
-                {venues.map((venue) => (
+                <SelectItem value="todos">Todos</SelectItem>
+                {venuesDisplay.map((venue) => (
                   <SelectItem key={venue} value={venue}>
                     {venue === "todos" ? "Todos" : venue}
                   </SelectItem>
@@ -155,6 +186,7 @@ export const DashboardHeader = ({
               </SelectContent>
             </Select>
 
+            {/* ORDENAR POR */}
             <Select value={sortBy} onValueChange={onSortChange}>
               <SelectTrigger className="bg-background border-border h-6 text-xs w-20 sm:w-24">
                 <SelectValue />
@@ -171,19 +203,15 @@ export const DashboardHeader = ({
             </Select>
           </div>
 
-          {/* Login Button - Esquina derecha */}
+          {/* Login Button */}
           <Button
             variant="outline"
             size="sm"
             className="h-8 w-8 p-0 flex items-center justify-center"
-            onClick={() => {
-              // Aquí agregarías la lógica para mostrar el componente de login
-              console.log("Abrir componente de login");
-            }}
+            onClick={() => console.log("Abrir componente de login")}
           >
             <LoginButton />
           </Button>
-
         </div>
       </div>
     </header>

@@ -1,148 +1,170 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { ArrowRight, Sparkles, Calendar, TrendingUp, Music, Radio, Headphones, MapPin } from "lucide-react";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import {
+  ArrowRight,
+  Sparkles,
+  Calendar,
+  TrendingUp,
+  Music,
+  Radio,
+  Headphones,
+  MapPin,
+} from "lucide-react";
 import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getMentionsResume, TopEvento } from "@/lib/api";
+import { getRankingEventos, TopEvento, FiltrosBusqueda } from "@/lib/api";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
+import { useDashboardContext } from "@/components/DashboardLayout";
+import { Loader2, Filter } from "lucide-react";
 
-// Formatear fecha
-const formatDate = (dateString: string) => {
+interface Evento {
+  EventGroupID: number;
+  NombreEvento: string;
+  Artista: string;
+  Ciudad: string;
+  Venue: string;
+  Fecha: string;
+  Spots: number;
+  Menciones: number;
+  Total: number;
+  Alcance: number;
+}
+
+// --- UTILIDADES DE ESTILO ---
+const cityColors: Record<string, string> = {
+  Bogota: "bg-gradient-to-r from-blue-500 to-indigo-500",
+  Medellin: "bg-gradient-to-r from-green-500 to-teal-500",
+  Cali: "bg-gradient-to-r from-yellow-500 to-orange-500",
+  Barranquilla: "bg-gradient-to-r from-red-500 to-pink-500",
+  Cartagena: "bg-gradient-to-r from-purple-500 to-pink-500",
+};
+
+const getInitial = (artist: string) =>
+  artist ? artist.charAt(0).toUpperCase() : "?";
+
+const getColorFromInitial = (initial: string) => {
+  const colors = [
+    "bg-gradient-to-br from-blue-500 to-cyan-500",
+    "bg-gradient-to-br from-purple-500 to-pink-500",
+    "bg-gradient-to-br from-green-500 to-emerald-500",
+    "bg-gradient-to-br from-orange-500 to-red-500",
+    "bg-gradient-to-br from-indigo-500 to-blue-500",
+    "bg-gradient-to-br from-yellow-500 to-amber-500",
+    "bg-gradient-to-br from-pink-500 to-rose-500",
+    "bg-gradient-to-br from-teal-500 to-green-500",
+  ];
+  const index = initial.charCodeAt(0) % colors.length;
+  return colors[index];
+};
+
+const formatDateSafe = (dateString: string) => {
   try {
-    const date = new Date(dateString);
-    return format(date, 'dd/MM/yyyy', { locale: es });
+    return dateString
+      ? format(new Date(dateString), "dd/MM/yyyy", { locale: es })
+      : "-";
   } catch {
     return dateString;
   }
 };
 
-// Colores para ciudades
-const cityColors: Record<string, string> = {
-  "Bogota": "bg-gradient-to-r from-blue-500 to-indigo-500",
-  "Medellin": "bg-gradient-to-r from-green-500 to-teal-500",
-  "Cali": "bg-gradient-to-r from-yellow-500 to-orange-500",
-  "Barranquilla": "bg-gradient-to-r from-red-500 to-pink-500",
-  "Cartagena": "bg-gradient-to-r from-purple-500 to-pink-500",
-};
-
-interface EventsRankingProps {
-  selectedCity?: string;
-  selectedType?: string;
-  selectedVenue?: string;
-  sortBy?: string;
-}
-
-export const EventsRanking = ({
-  selectedCity = "todos",
-  selectedType = "todos",
-  selectedVenue = "todos",
-  sortBy = "total"
-}: EventsRankingProps) => {
+export const EventsRanking = () => {
   const navigate = useNavigate();
-  const [topEventos, setTopEventos] = useState<TopEvento[]>([]);
+
+  const { selectedCountry, selectedCity, dateRange, selectedVenue } =
+    useDashboardContext();
+
+  const [events, setEvents] = useState<Evento[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("all");
 
+  //const API_URL = "http://localhost:8080/api/dashboard";
+  const API_URL = "https://backevent.monitorlatino.com/api/dashboard";
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const getDiasFromContext = (rango: any): number => {
+    if (!rango) return 0;
+    const texto = rango.toString().toLowerCase();
+    if (texto === "todos") return 0;
+    if (texto.includes("7")) return 7;
+    if (texto.includes("14")) return 14;
+    if (texto.includes("30")) return 30;
+    if (texto.includes("60")) return 60;
+    if (texto.includes("90") || texto.includes("3 meses")) return 90;
+    return 0;
+  };
+
+  //  FETCH DE DATOS
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const data = await getMentionsResume();
-        setTopEventos(data.topEventos || []);
-        setError(null);
-      } catch (err) {
-        console.error("Error fetching data:", err);
-        setError("Error al cargar los datos. Por favor, intente nuevamente.");
+        const params = new URLSearchParams();
+
+        if (selectedCountry && selectedCountry !== "Todos")
+          params.append("pais", selectedCountry);
+        if (
+          selectedCity &&
+          selectedCity !== "Todos" &&
+          selectedCity !== "Todas"
+        )
+          params.append("ciudad", selectedCity);
+        if (selectedVenue && selectedVenue !== "Todos")
+          params.append("venue", selectedVenue);
+
+        const dias = getDiasFromContext(dateRange);
+        if (dias > 0) params.append("dias", dias.toString());
+
+        console.log(" Buscando eventos con:", params.toString());
+
+        const response = await fetch(
+          `${API_URL}/ranking-eventos?${params.toString()}`,
+        );
+        const data = await response.json();
+
+        setEvents(Array.isArray(data) ? data : []);
+      } catch (error) {
+        console.error(" Error cargando ranking:", error);
+        setEvents([]);
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-    // Refrescar automáticamente cada 15 minutos
-    const interval = setInterval(fetchData, 900000);
-    return () => clearInterval(interval);
-  }, []);
+  }, [selectedCountry, selectedCity, dateRange, selectedVenue]);
 
-  // Función para manejar el cambio de pestaña
-  const handleTabChange = (value: string) => {
-    setActiveTab(value);
-  };
-
+  // filtro (local) por seguiridad
   const filteredAndSortedEvents = useMemo(() => {
-    let filtered = [...topEventos];
+    let filtered = [...events];
 
-    // Aplicar filtros
-    if (selectedCity !== "todos") {
-      filtered = filtered.filter(event => event.Ciudad === selectedCity);
-    }
-
-    if (selectedVenue !== "todos") {
-      filtered = filtered.filter(event => event.Venue === selectedVenue);
-    }
-
-    // Filtrar según la pestaña activa
+    // (Spots vs Menciones)
     if (activeTab === "spots") {
-      filtered = filtered.filter(event => event.Spots > 0);
+      filtered = filtered
+        .filter((event) => event.Spots > 0)
+        .sort((a, b) => b.Spots - a.Spots);
     } else if (activeTab === "mentions") {
-      filtered = filtered.filter(event => event.Menciones > 0);
+      filtered = filtered
+        .filter((event) => event.Menciones > 0)
+        .sort((a, b) => b.Menciones - a.Menciones);
+    } else {
+      filtered.sort((a, b) => b.Total - a.Total);
     }
+    return filtered;
+  }, [events, activeTab]);
 
-    // Ordenar según la pestaña activa
-    if (activeTab === "spots") {
-      // Ordenar por cantidad de Spots de manera descendente
-      return filtered.sort((a, b) => b.Spots - a.Spots);
-    } else if (activeTab === "mentions") {
-      // Ordenar por cantidad de Menciones de manera descendente
-      return filtered.sort((a, b) => b.Menciones - a.Menciones);
-    } else if (sortBy === "date") {
-      // Ordenar por fecha (si está seleccionado en los filtros generales)
-      return filtered.sort((a, b) => {
-        const dateA = a.Fecha ? new Date(a.Fecha).getTime() : 0;
-        const dateB = b.Fecha ? new Date(b.Fecha).getTime() : 0;
-        return dateB - dateA;
-      });
-    } else if (sortBy === "spots") {
-      return filtered.sort((a, b) => b.Spots - a.Spots);
-    } else if (sortBy === "mentions") {
-      return filtered.sort((a, b) => b.Menciones - a.Menciones);
-    } else if (sortBy === "total") {
-      return filtered.sort((a, b) => b.Total - a.Total);
-    } else if (sortBy === "alcance") {
-      return filtered.sort((a, b) => b.Alcance - a.Alcance);
-    }
-
-    // Por defecto: ordenar por total
-    return filtered.sort((a, b) => b.Total - a.Total);
-  }, [topEventos, selectedCity, selectedVenue, activeTab, sortBy]);
-
-  // Función para obtener la letra inicial del artista
-  const getInitial = (artist: string) => {
-    return artist.charAt(0).toUpperCase();
-  };
-
-  // Función para generar un color basado en la letra inicial
-  const getColorFromInitial = (initial: string) => {
-    const colors = [
-      "bg-gradient-to-br from-blue-500 to-cyan-500",
-      "bg-gradient-to-br from-purple-500 to-pink-500",
-      "bg-gradient-to-br from-green-500 to-emerald-500",
-      "bg-gradient-to-br from-orange-500 to-red-500",
-      "bg-gradient-to-br from-indigo-500 to-blue-500",
-      "bg-gradient-to-br from-yellow-500 to-amber-500",
-      "bg-gradient-to-br from-pink-500 to-rose-500",
-      "bg-gradient-to-br from-teal-500 to-green-500",
-    ];
-
-    const index = initial.charCodeAt(0) % colors.length;
-    return colors[index];
-  };
-
+  // Renderizado de Tarjetas (Móvil)
   const renderEventCards = (events: typeof filteredAndSortedEvents) => (
     <div className="grid gap-4 md:hidden">
       {events.map((event, index) => {
@@ -151,15 +173,19 @@ export const EventsRanking = ({
 
         return (
           <Card
-            key={event.EventGroupID}
+            key={event.EventGroupID || index}
             className="group hover-lift overflow-hidden border-0 shadow-lg animate-fade-in cursor-pointer"
             style={{ animationDelay: `${index * 100}ms` }}
-            onClick={() => navigate(`/artist/${encodeURIComponent(event.Artista)}`)}
+            onClick={() =>
+              navigate(`/artist/${encodeURIComponent(event.Artista)}`)
+            }
           >
             <CardContent className="p-4">
               <div className="flex items-start gap-3 mb-3">
                 {/* Placeholder con letra del artista */}
-                <div className={`w-16 h-16 rounded-full ${colorClass} flex items-center justify-center text-white font-bold text-2xl shadow-lg flex-shrink-0`}>
+                <div
+                  className={`w-16 h-16 rounded-full ${colorClass} flex items-center justify-center text-white font-bold text-2xl shadow-lg flex-shrink-0`}
+                >
                   {initial}
                 </div>
 
@@ -171,8 +197,11 @@ export const EventsRanking = ({
                     {index === 0 && (
                       <Badge className="bg-gradient-to-r from-yellow-500 to-amber-500 text-white border-0 gap-1 text-xs">
                         <Sparkles className="h-3 w-3" />
-                        {activeTab === "spots" ? "Top Spots" :
-                          activeTab === "mentions" ? "Top Menciones" : "Top"}
+                        {activeTab === "spots"
+                          ? "Top Spots"
+                          : activeTab === "mentions"
+                            ? "Top Menciones"
+                            : "Top"}
                       </Badge>
                     )}
                   </div>
@@ -180,26 +209,39 @@ export const EventsRanking = ({
                   <h3 className="font-semibold text-base mb-1 group-hover:text-primary transition-colors">
                     {event.NombreEvento || `Evento de ${event.Artista}`}
                   </h3>
-                  <p className="text-sm text-muted-foreground">{event.Artista}</p>
+                  <p className="text-sm text-muted-foreground">
+                    {event.Artista}
+                  </p>
                   <p className="text-xs text-muted-foreground mt-1">
-                    {event.Ciudad} • {event.Venue || "Venue no especificado"} • {formatDate(event.Fecha)}
+                    {event.Ciudad} • {event.Venue || "Venue no especificado"} •{" "}
+                    {formatDateSafe(event.Fecha)}
                   </p>
                 </div>
               </div>
 
               <div className="mb-3">
-                <Badge className={"bg-gradient-to-r from-gray-500 to-slate-500 text-white border-0 text-xs mb-2"}>
+                <Badge
+                  className={
+                    "bg-gradient-to-r from-gray-500 to-slate-500 text-white border-0 text-xs mb-2"
+                  }
+                >
                   {event.Ciudad}
                 </Badge>
                 <div className="flex items-center gap-2">
-                  <Badge className={"bg-gradient-to-r from-gray-500 to-slate-500 text-white border-0 text-xs"}>
+                  <Badge
+                    className={
+                      "bg-gradient-to-r from-gray-500 to-slate-500 text-white border-0 text-xs"
+                    }
+                  >
                     Alcance: {event.Alcance.toLocaleString()}
                   </Badge>
                 </div>
               </div>
 
               <div className="flex items-center justify-between p-3 rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20 mb-3 glow-primary">
-                <div className="text-xs font-medium text-primary">Impacto Total</div>
+                <div className="text-xs font-medium text-primary">
+                  Impacto Total
+                </div>
                 <div className="text-2xl font-bold bg-gradient-to-r from-primary to-secondary bg-clip-text text-transparent">
                   {event.Total}
                 </div>
@@ -208,23 +250,31 @@ export const EventsRanking = ({
               <div className="grid grid-cols-3 gap-2 mb-3">
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">Spots</div>
-                  <div className="text-sm font-bold text-foreground">{event.Spots}</div>
+                  <div className="text-sm font-bold text-foreground">
+                    {event.Spots}
+                  </div>
                 </div>
                 <div className="text-center border-x border-border">
                   <div className="text-xs text-muted-foreground">Menciones</div>
-                  <div className="text-sm font-bold text-foreground">{event.Menciones}</div>
+                  <div className="text-sm font-bold text-foreground">
+                    {event.Menciones}
+                  </div>
                 </div>
                 <div className="text-center">
                   <div className="text-xs text-muted-foreground">Total</div>
-                  <div className="text-sm font-bold text-foreground">{event.Total}</div>
+                  <div className="text-sm font-bold text-foreground">
+                    {event.Total}
+                  </div>
                 </div>
               </div>
 
               <div className="mb-2">
-                <div className="text-xs text-muted-foreground mb-1">Fecha del evento</div>
+                <div className="text-xs text-muted-foreground mb-1">
+                  Fecha del evento
+                </div>
                 <div className="flex items-center gap-1 text-sm">
                   <Calendar className="h-3 w-3 text-muted-foreground" />
-                  {formatDate(event.Fecha)}
+                  {formatDateSafe(event.Fecha)}
                 </div>
               </div>
             </CardContent>
@@ -261,7 +311,6 @@ export const EventsRanking = ({
                 key={event.EventGroupID}
                 className="group hover:bg-muted/50 cursor-pointer transition-all animate-fade-in"
                 style={{ animationDelay: `${index * 50}ms` }}
-
               >
                 <TableCell>
                   <div className="flex items-center gap-2">
@@ -276,7 +325,9 @@ export const EventsRanking = ({
                 <TableCell>
                   <div className="flex items-center gap-3">
                     {/* Placeholder con letra del artista */}
-                    <div className={`w-12 h-12 rounded-full ${colorClass} flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0`}>
+                    <div
+                      className={`w-12 h-12 rounded-full ${colorClass} flex items-center justify-center text-white font-bold text-xl shadow-md flex-shrink-0`}
+                    >
                       {initial}
                     </div>
                     <div>
@@ -290,14 +341,21 @@ export const EventsRanking = ({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <Badge className={"bg-gradient-to-r from-gray-500 to-slate-500 text-white border-0 text-xs"}>
+                  <Badge
+                    className={
+                      "bg-gradient-to-r from-gray-500 to-slate-500 text-white border-0 text-xs"
+                    }
+                  >
                     {event.Ciudad}
                   </Badge>
                 </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-2">
                     <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span className="text-sm font-medium max-w-[150px] truncate" title={event.Venue || "No especificado"}>
+                    <span
+                      className="text-sm font-medium max-w-[150px] truncate"
+                      title={event.Venue || "No especificado"}
+                    >
                       {event.Venue || "No especificado"}
                     </span>
                   </div>
@@ -305,22 +363,28 @@ export const EventsRanking = ({
                 <TableCell>
                   <div className="flex items-center gap-1 text-sm">
                     <Calendar className="h-3 w-3 text-muted-foreground" />
-                    {formatDate(event.Fecha)}
+                    {formatDateSafe(event.Fecha)}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
-                  <span className={`px-2 py-1 rounded-md font-semibold text-sm ${activeTab === "spots" && index === 0
-                    ? "bg-yellow-500/20 text-yellow-700 border border-yellow-500/30"
-                    : "bg-green-500/10 text-green-600"
-                    }`}>
+                  <span
+                    className={`px-2 py-1 rounded-md font-semibold text-sm ${
+                      activeTab === "spots" && index === 0
+                        ? "bg-yellow-500/20 text-yellow-700 border border-yellow-500/30"
+                        : "bg-green-500/10 text-green-600"
+                    }`}
+                  >
                     {event.Spots}
                   </span>
                 </TableCell>
                 <TableCell className="text-right">
-                  <span className={`px-2 py-1 rounded-md font-semibold text-sm ${activeTab === "mentions" && index === 0
-                    ? "bg-blue-500/20 text-blue-700 border border-blue-500/30"
-                    : "bg-blue-500/10 text-blue-600"
-                    }`}>
+                  <span
+                    className={`px-2 py-1 rounded-md font-semibold text-sm ${
+                      activeTab === "mentions" && index === 0
+                        ? "bg-blue-500/20 text-blue-700 border border-blue-500/30"
+                        : "bg-blue-500/10 text-blue-600"
+                    }`}
+                  >
                     {event.Menciones}
                   </span>
                 </TableCell>
@@ -335,7 +399,11 @@ export const EventsRanking = ({
                 <TableCell className="text-right font-semibold">
                   {event.Alcance.toLocaleString()}
                 </TableCell>
-                <TableCell onClick={() => navigate(`/artist/${encodeURIComponent(event.Artista)}`)}>
+                <TableCell
+                  onClick={() =>
+                    navigate(`/artist/${encodeURIComponent(event.Artista)}`)
+                  }
+                >
                   <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
                 </TableCell>
               </TableRow>
@@ -352,9 +420,14 @@ export const EventsRanking = ({
         <CardContent className="p-8 text-center">
           <div className="flex flex-col items-center justify-center space-y-4">
             <Music className="h-12 w-12 text-primary animate-pulse" />
-            <p className="text-lg text-muted-foreground">Cargando ranking de eventos...</p>
+            <p className="text-lg text-muted-foreground">
+              Cargando ranking de eventos...
+            </p>
             <div className="w-48 h-2 bg-gray-200 rounded-full overflow-hidden">
-              <div className="h-full bg-gradient-to-r from-primary to-secondary animate-pulse" style={{ width: '60%' }} />
+              <div
+                className="h-full bg-gradient-to-r from-primary to-secondary animate-pulse"
+                style={{ width: "60%" }}
+              />
             </div>
           </div>
         </CardContent>
@@ -389,7 +462,10 @@ export const EventsRanking = ({
             <CardTitle className="text-xl sm:text-2xl font-bold flex items-center gap-2">
               <Music className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
               Ranking de Eventos Musicales
-              <Badge variant="outline" className="ml-2 bg-primary/10 text-primary border-primary/20">
+              <Badge
+                variant="outline"
+                className="ml-2 bg-primary/10 text-primary border-primary/20"
+              >
                 {filteredAndSortedEvents.length} eventos
               </Badge>
             </CardTitle>
@@ -402,7 +478,11 @@ export const EventsRanking = ({
           </p>
         </CardHeader>
         <CardContent className="p-1 sm:p-4">
-          <Tabs defaultValue="all" className="w-full" onValueChange={handleTabChange}>
+          <Tabs
+            defaultValue="all"
+            className="w-full"
+            onValueChange={setActiveTab}
+          >
             <TabsList className="grid w-full grid-cols-3 mb-4">
               <TabsTrigger value="all" className="text-xs sm:text-sm">
                 Todos
@@ -433,7 +513,8 @@ export const EventsRanking = ({
 
             <TabsContent value="spots" className="space-y-4">
               <div className="text-sm text-muted-foreground mb-2">
-                Mostrando eventos con spots comerciales ordenados por cantidad de Spots (mayor a menor)
+                Mostrando eventos con spots comerciales ordenados por cantidad
+                de Spots (mayor a menor)
               </div>
               {renderEventCards(filteredAndSortedEvents)}
               {renderEventTable(filteredAndSortedEvents)}
@@ -449,7 +530,8 @@ export const EventsRanking = ({
 
             <TabsContent value="mentions" className="space-y-4">
               <div className="text-sm text-muted-foreground mb-2">
-                Mostrando eventos con menciones ordenados por cantidad de Menciones (mayor a menor)
+                Mostrando eventos con menciones ordenados por cantidad de
+                Menciones (mayor a menor)
               </div>
               {renderEventCards(filteredAndSortedEvents)}
               {renderEventTable(filteredAndSortedEvents)}
@@ -469,7 +551,7 @@ export const EventsRanking = ({
               <div className="flex items-center justify-between">
                 <div className="text-sm text-muted-foreground flex items-center gap-2">
                   <Radio className="h-4 w-4" />
-                  Total eventos monitoreados: {topEventos.length}
+                  Total eventos monitoreados: {events.length}
                   {activeTab === "spots" && (
                     <span className="text-green-600 font-medium">
                       • {filteredAndSortedEvents.length} con spots comerciales

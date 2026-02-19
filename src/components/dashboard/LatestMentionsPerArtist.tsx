@@ -7,9 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { getMentionsResume, Deteccion } from "@/lib/api";
+import { getMentionsResume, Deteccion, FiltrosBusqueda } from "@/lib/api";
 
-// Función para formatear fecha
+
 const formatDate = (dateString: string) => {
     try {
         const date = new Date(dateString);
@@ -19,7 +19,7 @@ const formatDate = (dateString: string) => {
     }
 };
 
-// Función para tiempo relativo
+
 const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -42,12 +42,22 @@ const typeColors: Record<string, string> = {
 // Interface para props
 interface LatestMentionsPerArtistProps {
     artistName?: string;
+    selectedCity?: string;
+    selectedType?: string;
+    selectedCountry?: string;
+    selectedVenue?: string;
+    dateRange?: string;
     limit?: number;
 }
 
 export const LatestMentionsPerArtist = ({
     artistName: propArtistName,
-    limit = 20
+    limit = 20,
+    selectedCity = "todos",
+    selectedType = "todos",
+    selectedCountry = "todos",
+    selectedVenue = "todos",
+    dateRange = "todos"
 }: LatestMentionsPerArtistProps) => {
     const navigate = useNavigate();
     const { artistName: paramArtistName } = useParams<{ artistName: string }>();
@@ -77,7 +87,14 @@ export const LatestMentionsPerArtist = ({
         const fetchMentions = async () => {
             try {
                 setLoading(true);
-                const data = await getMentionsResume();
+                const filtros: FiltrosBusqueda = {
+                pais: selectedCountry,
+                ciudad: selectedCity,
+                tipo: selectedType, 
+                venue: selectedVenue,
+                fechaInicio: dateRange
+                };
+                const data = await getMentionsResume(filtros);  
 
                 // Filtrar por artista
                 const artistDetections = data.ultimasDetecciones.filter(
@@ -97,7 +114,7 @@ export const LatestMentionsPerArtist = ({
 
                     // Ordenar por fecha para obtener primera y última
                     const sortedByDate = [...artistDetections].sort(
-                        (a, b) => new Date(b.Hora).getTime() - new Date(a.Hora).getTime()
+                        (a, b) => new Date(b.FechaDeteccion).getTime() - new Date(a.FechaDeteccion).getTime()
                     );
 
                     setStats({
@@ -107,8 +124,8 @@ export const LatestMentionsPerArtist = ({
                         ciudades,
                         emisoras,
                         venues,
-                        ultimaDeteccion: sortedByDate[0]?.Hora || "",
-                        primeraDeteccion: sortedByDate[sortedByDate.length - 1]?.Hora || ""
+                        ultimaDeteccion: sortedByDate[0]?.FechaDeteccion || "",
+                        primeraDeteccion: sortedByDate[sortedByDate.length - 1]?.FechaDeteccion || ""
                     });
                 }
 
@@ -124,7 +141,7 @@ export const LatestMentionsPerArtist = ({
         if (artistName) {
             fetchMentions();
         }
-    }, [artistName, limit]);
+    }, [artistName, limit, selectedCity, selectedType, selectedCountry, selectedVenue, dateRange]);
 
     // Función para manejar reproducción de audio
     const handlePlayAudio = (audioUrl: string, e: React.MouseEvent) => {
