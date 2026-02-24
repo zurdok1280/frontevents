@@ -1,7 +1,7 @@
 // api.ts - Eventos Monitor Latino API Client
 
 // ========== Configuración ==========
-const BASE_URL = "https://backevent.monitorlatino.com/api/dashboard";
+const BASE_URL = "https://backevent.monitorlatino.com/api/dashboard/";
 //const BASE_URL = "http://localhost:8080/api/dashboard/";
 
 // ========== Interfaces ==========
@@ -103,7 +103,7 @@ const buildCleanParams = (filtros?: FiltrosBusqueda): string => {
     }
   };
 
-  // 1. Filtros de Texto / Selects
+  //  Filtros de Texto / Selects
   addIfValid("pais", filtros.pais);
   addIfValid("ciudad", filtros.ciudad);
   addIfValid("venue", filtros.venue);
@@ -112,17 +112,17 @@ const buildCleanParams = (filtros?: FiltrosBusqueda): string => {
   addIfValid("emisora", filtros.emisora); 
 
   // Fechas 
-  if (filtros.fechaInicio) {
-      params.append("fechaInicio", filtros.fechaInicio);
+const isFechaInicioValida = filtros.fechaInicio && filtros.fechaInicio.toLowerCase() !== "todos";
+  
+  if (isFechaInicioValida) {
+      params.append("fechaInicio", filtros.fechaInicio!);
       
-      if (filtros.fechaFin) {
+      if (filtros.fechaFin && filtros.fechaFin.toLowerCase() !== "todos") {
           params.append("fechaFin", filtros.fechaFin);
       }
   } else if (filtros.rango) {
       const dias = getDaysFromRange(filtros.rango);
       params.append("dias", dias.toString());
-  } else {
-      // Default si no se envía nada 
   }
 
   return params.toString();

@@ -18,6 +18,9 @@ import {
   Play,
   Radio,
   Sparkles,
+  Edit,
+  X,
+  Save
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -40,11 +43,12 @@ interface Deteccion {
   Duracion?: number;
   Contexto?: string;
   AudioUrl?: string;
+  EventGroupID?: number;
 }
 
 // URL BASE
 //const API_URL = "http://localhost:8080/api/dashboard";
-const API_URL = "https://backevent.monitorlatino.com/api/dashboard";
+const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
 
 const formatTimeAgo = (dateString: string) => {
   if (!dateString) return "";
@@ -83,13 +87,19 @@ export const LatestMentions = () => {
     selectedGenre,
     dateRange,
   } = useDashboardContext();
-
+  // Estados 
   const [detecciones, setDetecciones] = useState<Deteccion[]>([]);
   const [loading, setLoading] = useState(true);
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const [error, setError] = useState<string | null>(null);
   const [currentlyPlaying, setCurrentlyPlaying] = useState<number | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingDet, setEditingDet] = useState<Deteccion | null>(null);
+  const [editForm, setEditForm] = useState({ Artista: "", Tipo: "", EventGroupID: "" });
+  const [isSaving, setIsSaving] = useState(false);
+
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getDiasFromContext = (rango: any): number => {
@@ -109,10 +119,10 @@ export const LatestMentions = () => {
       return 30;
     if (texto.includes("todos")) return 0;
 
-    return 0; // Default a 0 (Todos) si no reconoce el texto
+    return 0; // Default a 0 (Todos) 
   };
 
-  // 3. FETCH DATA (Lógica idéntica a ArtistRanking)
+  
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
@@ -213,7 +223,7 @@ export const LatestMentions = () => {
       }
 
       // Crear y reproducir nueva canción
-      const audio = new Audio(audioUrl); // aquí se asigna la URL real del MP3
+      const audio = new Audio(audioUrl); 
       audioRef.current = audio;
 
       // Cuando termine el audio, limpiar estado
@@ -221,8 +231,6 @@ export const LatestMentions = () => {
         setCurrentlyPlaying(null);
         audioRef.current = null;
       });
-
-      // Intentar reproducir (algunos navegadores requieren interacción de usuario)
       audio
         .play()
         .then(() => {
@@ -236,7 +244,47 @@ export const LatestMentions = () => {
     },
     [currentlyPlaying],
   );
+  //Edición 
+  const handleOpenEdit = (det: Deteccion, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setEditingDet(det);
+    setEditForm({
+      Artista: det.Artista || "",
+      Tipo: det.Tipo || "MENCION",
+      EventGroupID: det.EventGroupID ? det.EventGroupID.toString() : "",
+    });
+    setIsEditModalOpen(true);
+  };
 
+  const handleSaveEdit = async () => {
+    if (!editingDet) return;
+    try {
+      setIsSaving(true);
+      const response = await fetch(`${API_URL}/deteccion/editar`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          DeteccionID: editingDet.DeteccionID,
+          Artista: editForm.Artista,
+          Tipo: editForm.Tipo,
+          EventGroupID: editForm.EventGroupID ? parseInt(editForm.EventGroupID) : null,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Error al actualizar");
+
+      //recargamos la tabla y cerramos modal
+      await fetchData();
+      setIsEditModalOpen(false);
+      setEditingDet(null);
+    } catch (error) {
+      console.error("Error guardando edición:", error);
+      alert("Hubo un error al guardar. Asegúrate de que el backend esté listo.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+  // Vista Móvil (Cards) y Desktop (Table)
   const renderDeteccionCards = (detecciones: Deteccion[]) => (
     <div className="grid gap-4 md:hidden">
       {detecciones.map((det, index) => (
@@ -246,6 +294,13 @@ export const LatestMentions = () => {
           style={{ animationDelay: `${index * 100}ms` }}
           onClick={() => navigate(`/artist/${encodeURIComponent(det.Artista)}`)}
         >
+          {/* Botón de Edición */}
+          <button
+            onClick={(e) => handleOpenEdit(det, e)}
+            className="absolute top-3 right-3 p-2 bg-secondary/10 text-secondary hover:bg-secondary/20 rounded-full transition-colors z-10"
+          >
+            <Edit className="h-4 w-4" />
+          </button>
           <CardContent className="p-4">
             <div className="flex items-start justify-between mb-3">
               <div className="flex-1">
@@ -271,7 +326,7 @@ export const LatestMentions = () => {
               </div>
 
               <Badge
-                className={`${getTypeColor[det.Tipo] || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 text-xs`}
+                className={`${getTypeColor(det.Tipo) || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 text-xs`}
               >
                 {det.Tipo}
               </Badge>
@@ -310,7 +365,7 @@ export const LatestMentions = () => {
       ))}
     </div>
   );
-
+ //Vista Escritorio (Tabla)
   const renderDeteccionTable = (detecciones: Deteccion[]) => (
     <div className="hidden md:block overflow-auto">
       <Table>
@@ -374,7 +429,7 @@ export const LatestMentions = () => {
               </TableCell>
               <TableCell>
                 <Badge
-                  className={`${getTypeColor[det.Tipo] || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 text-xs`}
+                  className={`${getTypeColor(det.Tipo) || "bg-gradient-to-r from-gray-500 to-slate-500"} text-white border-0 text-xs`}
                 >
                   {det.Tipo}
                 </Badge>
@@ -414,7 +469,16 @@ export const LatestMentions = () => {
                   navigate(`/artist/${encodeURIComponent(det.Artista)}`)
                 }
               >
+                <div className="flex items-center justify-center gap-2">
+                  <button
+                    onClick={(e) => handleOpenEdit(det, e)}
+                    className="p-2 text-muted-foreground hover:text-secondary hover:bg-secondary/10 rounded-full transition-colors"
+                    title="Editar registro"
+                  >
+                    <Edit className="h-4 w-4" />
+                  </button>
                 <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                </div>
               </TableCell>
             </TableRow>
           ))}
@@ -464,6 +528,7 @@ export const LatestMentions = () => {
   }
 
   return (
+    <>
     <div className="space-y-2 p-1 sm:p-2">
       <Card className="border-0 shadow-lg">
         <CardHeader className="pb-2">
@@ -532,26 +597,101 @@ export const LatestMentions = () => {
               )}
             </TabsContent>
           </Tabs>
+</CardContent>
+        </Card>
+      </div>
 
-          {filteredDetecciones.length > 0 && (
-            <div className="mt-6 pt-4 border-t border-border">
-              <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  Mostrando {filteredDetecciones.length} de {detecciones.length}{" "}
-                  detecciones
-                </div>
-                <button
-                  onClick={() => navigate("/detections")}
-                  className="text-sm text-primary hover:text-primary/80 font-medium flex items-center gap-1"
+      {isEditModalOpen && editingDet && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+          <div className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-md overflow-hidden">
+            {/* Cabecera del Modal */}
+            <div className="px-6 py-4 border-b border-border flex justify-between items-center bg-muted/30">
+              <h3 className="font-semibold text-lg flex items-center gap-2">
+                <Edit className="h-5 w-5 text-primary" />
+                Editar Detección #{editingDet.DeteccionID}
+              </h3>
+              <button 
+                onClick={() => setIsEditModalOpen(false)}
+                className="text-muted-foreground hover:text-foreground transition-colors p-1"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            {/* Contenido/Formulario */}
+            <div className="p-6 space-y-4">
+              {/* Información de Solo Lectura */}
+              <div className="bg-muted/50 p-3 rounded-lg text-sm mb-4 space-y-1">
+                <p><span className="font-semibold">Emisora:</span> {editingDet.Emisora}</p>
+                <p><span className="font-semibold">Fecha:</span> {formatTimeAgo(editingDet.FechaDeteccion)}</p>
+              </div>
+
+              {/* Campos Editables */}
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Artista
+                </label>
+                <input
+                  type="text"
+                  placeholder="Nombre del artista"
+                  value={editForm.Artista}
+                  onChange={(e) => setEditForm({ ...editForm, Artista: e.target.value })}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Tipo de Detección
+                </label>
+                <select
+                  value={editForm.Tipo}
+                  onChange={(e) => setEditForm({ ...editForm, Tipo: e.target.value })}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring"
                 >
-                  Ver todas las detecciones
-                  <ArrowRight className="h-4 w-4" />
-                </button>
+                  <option value="MENCION">MENCION</option>
+                  <option value="SPOT">SPOT</option>
+                  <option value="OTRO">OTRO</option>
+                </select>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  ID del Grupo (EventGroupID)
+                </label>
+                <input
+                  type="number"
+                  placeholder="Ej. 105"
+                  value={editForm.EventGroupID}
+                  onChange={(e) => setEditForm({ ...editForm, EventGroupID: e.target.value })}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring placeholder:text-muted-foreground"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Cambia este ID para fusionar o mover esta detección a otro evento del Ranking. Déjalo en blanco para desenlazar.
+                </p>
               </div>
             </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+
+            {/* Footer / Botones */}
+            <div className="px-6 py-4 border-t border-border bg-muted/20 flex justify-end gap-3">
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:bg-muted rounded-md transition-colors"
+                disabled={isSaving}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-primary rounded-md hover:bg-primary/90 transition-colors disabled:opacity-50"
+              >
+                {isSaving ? "Guardando..." : "Guardar Cambios"}
+                {!isSaving && <Save className="h-4 w-4" />}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };

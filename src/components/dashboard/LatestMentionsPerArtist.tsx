@@ -32,7 +32,14 @@ const formatTimeAgo = (dateString: string) => {
 
     return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
 };
-
+const normalizeText = (text?: string) => {
+    if (!text) return "";
+    return text
+        .trim() // Quita espacios al inicio y al final
+        .toLowerCase() // Pasa a minúsculas
+        .normalize("NFD") // Descompone los acentos
+        .replace(/[\u0300-\u036f]/g, ""); // Elimina los acentos
+};
 // Colores para tipos
 const typeColors: Record<string, string> = {
     "MENCION": "bg-gradient-to-r from-blue-500 to-cyan-500",
@@ -88,17 +95,19 @@ export const LatestMentionsPerArtist = ({
             try {
                 setLoading(true);
                 const filtros: FiltrosBusqueda = {
-                pais: selectedCountry,
-                ciudad: selectedCity,
-                tipo: selectedType, 
-                venue: selectedVenue,
-                fechaInicio: dateRange
+                    pais: selectedCountry,
+                    ciudad: selectedCity,
+                    tipo: selectedType, 
+                    venue: selectedVenue,
+                    rango: dateRange
                 };
                 const data = await getMentionsResume(filtros);  
 
                 // Filtrar por artista
+                const searchName = normalizeText(artistName);
+                
                 const artistDetections = data.ultimasDetecciones.filter(
-                    det => det.Artista.toLowerCase() === artistName.toLowerCase()
+                    det => normalizeText(det.Artista) === searchName
                 );
 
                 setDetecciones(artistDetections);
@@ -108,8 +117,10 @@ export const LatestMentionsPerArtist = ({
                 if (artistDetections.length > 0) {
                     const spots = artistDetections.filter(d => d.Tipo === "SPOT").length;
                     const mentions = artistDetections.filter(d => d.Tipo === "MENCION").length;
-                    const ciudades = [...new Set(artistDetections.map(d => d.Ciudad))];
-                    const emisoras = [...new Set(artistDetections.map(d => d.Emisora))];
+                    
+                    // Asegurarnos de no incluir nulos en los conteos
+                    const ciudades = [...new Set(artistDetections.map(d => d.Ciudad).filter(Boolean))];
+                    const emisoras = [...new Set(artistDetections.map(d => d.Emisora).filter(Boolean))];
                     const venues = [...new Set(artistDetections.map(d => d.Venue || "No especificado").filter(v => v !== "No especificado"))];
 
                     // Ordenar por fecha para obtener primera y última
@@ -126,6 +137,11 @@ export const LatestMentionsPerArtist = ({
                         venues,
                         ultimaDeteccion: sortedByDate[0]?.FechaDeteccion || "",
                         primeraDeteccion: sortedByDate[sortedByDate.length - 1]?.FechaDeteccion || ""
+                    });
+                } else {
+                    // Resetear stats si no hay detecciones
+                    setStats({
+                        total: 0, spots: 0, mentions: 0, ciudades: [], emisoras: [], venues: [], ultimaDeteccion: "", primeraDeteccion: ""
                     });
                 }
 
@@ -179,8 +195,6 @@ export const LatestMentionsPerArtist = ({
                 setCurrentlyPlaying(null);
                 audioRef.current = null;
             });
-
-            // Intentar reproducir (algunos navegadores requieren interacción de usuario)
             audio
                 .play()
                 .then(() => {

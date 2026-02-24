@@ -33,12 +33,12 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [listaVenues, setListaVenues] = useState<string[]>([]);
 
   // URL Base
-  const API_URL = "https://backevent.monitorlatino.com/api/dashboard";
+  const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
   //const API_URL = "http://localhost:8080/api/dashboard";
 
 
 
-  //CARGA DE DATOS
+  //**********CARGA DE DATOS*************
 
   //Paises y Venues
   useEffect(() => {
@@ -57,11 +57,11 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
       .catch((err) => console.error("Error venues:", err));
   }, []);
 
-  //Si cambia PAIS -> Cargar CIUDADES de ese país
+  //Si cambia PAIS... Cargar CIUDADES de ese país
   useEffect(() => {
     setSelectedCity("Todas");
     let url = `${API_URL}/filtros/ciudades`;
-    //filtramos si hay un país seleccionado y no es "Todos"
+    //filtramos si hay un país seleccionado y si no,  es "Todos"
     if (
       selectedCountry &&
       selectedCountry !== "Todos" &&

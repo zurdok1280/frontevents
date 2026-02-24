@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -18,15 +18,27 @@ import {
   Radio,
   Headphones,
   MapPin,
+  Edit2,
+  Loader2,
+   Filter,
 } from "lucide-react";
-import { useMemo } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getRankingEventos, TopEvento, FiltrosBusqueda } from "@/lib/api";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useDashboardContext } from "@/components/DashboardLayout";
-import { Loader2, Filter } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Button } from "@/components/ui/button";
+// ========== API Fetch Helper ==========
 
 interface Evento {
   EventGroupID: number;
@@ -41,7 +53,7 @@ interface Evento {
   Alcance: number;
 }
 
-// --- UTILIDADES DE ESTILO ---
+//Estados
 const cityColors: Record<string, string> = {
   Bogota: "bg-gradient-to-r from-blue-500 to-indigo-500",
   Medellin: "bg-gradient-to-r from-green-500 to-teal-500",
@@ -89,8 +101,17 @@ export const EventsRanking = () => {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<string>("all");
 
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [editingEvent, setEditingEvent] = useState<Evento | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [editFormData, setEditFormData] = useState({
+    nombreEvento: "",
+    artista: "",
+    venue: "",
+    fechaEvento: "",
+  });
   //const API_URL = "http://localhost:8080/api/dashboard";
-  const API_URL = "https://backevent.monitorlatino.com/api/dashboard";
+  const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getDiasFromContext = (rango: any): number => {
@@ -105,51 +126,49 @@ export const EventsRanking = () => {
     return 0;
   };
 
-  //  FETCH DE DATOS
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const params = new URLSearchParams();
+  const fetchData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams();
 
-        if (selectedCountry && selectedCountry !== "Todos")
-          params.append("pais", selectedCountry);
-        if (
-          selectedCity &&
-          selectedCity !== "Todos" &&
-          selectedCity !== "Todas"
-        )
-          params.append("ciudad", selectedCity);
-        if (selectedVenue && selectedVenue !== "Todos")
-          params.append("venue", selectedVenue);
+      if (selectedCountry && selectedCountry !== "Todos")
+        params.append("pais", selectedCountry);
+      if (
+        selectedCity &&
+        selectedCity !== "Todos" &&
+        selectedCity !== "Todas"
+      )
+        params.append("ciudad", selectedCity);
+      if (selectedVenue && selectedVenue !== "Todos")
+        params.append("venue", selectedVenue);
 
-        const dias = getDiasFromContext(dateRange);
-        if (dias > 0) params.append("dias", dias.toString());
+      const dias = getDiasFromContext(dateRange);
+      if (dias > 0) params.append("dias", dias.toString());
 
-        console.log(" Buscando eventos con:", params.toString());
+      const response = await fetch(
+        `${API_URL}/ranking-eventos?${params.toString()}`,
+      );
+      const data = await response.json();
 
-        const response = await fetch(
-          `${API_URL}/ranking-eventos?${params.toString()}`,
-        );
-        const data = await response.json();
-
-        setEvents(Array.isArray(data) ? data : []);
-      } catch (error) {
-        console.error(" Error cargando ranking:", error);
-        setEvents([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
+      setEvents(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error("Error cargando ranking:", error);
+      setError("No se pudo cargar la información de los eventos.");
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
   }, [selectedCountry, selectedCity, dateRange, selectedVenue]);
+
+  //  FETCH INICIAL  DE DATOS
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   // filtro (local) por seguiridad
   const filteredAndSortedEvents = useMemo(() => {
     let filtered = [...events];
 
-    // (Spots vs Menciones)
     if (activeTab === "spots") {
       filtered = filtered
         .filter((event) => event.Spots > 0)
@@ -164,6 +183,51 @@ export const EventsRanking = () => {
     return filtered;
   }, [events, activeTab]);
 
+  // Edición de eventos 
+  const handleOpenEdit = (evento: Evento) => {
+    setEditingEvent(evento);
+    setEditFormData({
+      nombreEvento: evento.NombreEvento || "",
+      artista: evento.Artista || "",
+      venue: evento.Venue || "",
+      // Formatear a YYYY-MM-DD para el input type="date"
+      fechaEvento: evento.Fecha ? evento.Fecha.split("T")[0] : "",
+    });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveChanges = async () => {
+    if (!editingEvent?.EventGroupID) return;
+    setIsSaving(true);
+
+    try {
+      const response = await fetch(`${API_URL}/evento/editar`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventGroupId: editingEvent.EventGroupID,
+          nombreEvento: editFormData.nombreEvento,
+          artista: editFormData.artista,
+          venue: editFormData.venue,
+          fechaEvento: editFormData.fechaEvento,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (result.success) {
+        setIsEditDialogOpen(false);
+        fetchData(); // Refrescamos los datos
+      } else {
+        alert("Error al actualizar: " + result.message);
+      }
+    } catch (error) {
+      console.error("Error al guardar cambios:", error);
+      alert("Error de conexión al guardar los cambios.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
   // Renderizado de Tarjetas (Móvil)
   const renderEventCards = (events: typeof filteredAndSortedEvents) => (
     <div className="grid gap-4 md:hidden">
@@ -180,6 +244,17 @@ export const EventsRanking = () => {
               navigate(`/artist/${encodeURIComponent(event.Artista)}`)
             }
           >
+            {/*Botón de edicion*/
+            <button
+              onClick={(e) => {
+                e.stopPropagation(); 
+                handleOpenEdit(event);
+              }}
+              className="absolute top-3 right-3 p-2 bg-background/80 backdrop-blur-sm rounded-full text-muted-foreground hover:text-primary transition-colors shadow-sm z-10"
+              title="Editar Evento"
+            >
+              <Edit2 className="h-4 w-4" />
+            </button>}
             <CardContent className="p-4">
               <div className="flex items-start gap-3 mb-3">
                 {/* Placeholder con letra del artista */}
@@ -404,7 +479,19 @@ export const EventsRanking = () => {
                     navigate(`/artist/${encodeURIComponent(event.Artista)}`)
                   }
                 >
+                  <div className="flex items-center justify-end gap-2">
+                  <button
+                      onClick={(e) => {
+                        e.stopPropagation(); 
+                        handleOpenEdit(event);
+                      }}
+                      className="p-2 hover:bg-muted rounded-full transition-colors"
+                      title="Editar Campos"
+                    >
+                      <Edit2 className="h-4 w-4 text-muted-foreground hover:text-primary" />
+                    </button>
                   <ArrowRight className="h-4 w-4 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all" />
+                  </div>
                 </TableCell>
               </TableRow>
             );
@@ -568,6 +655,78 @@ export const EventsRanking = () => {
           )}
         </CardContent>
       </Card>
+      {/* MODAL DE EDICIÓN */}
+      <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="h-5 w-5 text-primary" />
+              Editar Detalles del Evento
+            </DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-4 py-4">
+            <div className="grid gap-2">
+              <Label htmlFor="nombreEvento">Nombre del Evento</Label>
+              <Input
+                id="nombreEvento"
+                value={editFormData.nombreEvento}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, nombreEvento: e.target.value })
+                }
+                placeholder="Ej. Concierto de Shakira"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="artista">Artista</Label>
+              <Input
+                id="artista"
+                value={editFormData.artista}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, artista: e.target.value })
+                }
+                placeholder="Ej. Shakira"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="venue">Venue (Lugar)</Label>
+              <Input
+                id="venue"
+                value={editFormData.venue}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, venue: e.target.value })
+                }
+                placeholder="Ej. Estadio Azteca"
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="fechaEvento">Fecha del Evento</Label>
+              <Input
+                id="fechaEvento"
+                type="date"
+                value={editFormData.fechaEvento}
+                onChange={(e) =>
+                  setEditFormData({ ...editFormData, fechaEvento: e.target.value })
+                }
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSaveChanges} disabled={isSaving}>
+              {isSaving ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Guardando...
+                </>
+              ) : (
+                "Guardar Cambios"
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
