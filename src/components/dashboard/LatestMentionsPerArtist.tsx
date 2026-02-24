@@ -7,9 +7,9 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
-import { getMentionsResume, Deteccion } from "@/lib/api";
+import { getMentionsResume, Deteccion, FiltrosBusqueda } from "@/lib/api";
 
-// Función para formatear fecha
+
 const formatDate = (dateString: string) => {
     try {
         const date = new Date(dateString);
@@ -19,7 +19,7 @@ const formatDate = (dateString: string) => {
     }
 };
 
-// Función para tiempo relativo
+
 const formatTimeAgo = (dateString: string) => {
     const date = new Date(dateString);
     const now = new Date();
@@ -32,7 +32,14 @@ const formatTimeAgo = (dateString: string) => {
 
     return format(date, 'dd/MM/yyyy HH:mm', { locale: es });
 };
-
+const normalizeText = (text?: string) => {
+    if (!text) return "";
+    return text
+        .trim() // Quita espacios al inicio y al final
+        .toLowerCase() // Pasa a minúsculas
+        .normalize("NFD") // Descompone los acentos
+        .replace(/[\u0300-\u036f]/g, ""); // Elimina los acentos
+};
 // Colores para tipos
 const typeColors: Record<string, string> = {
     "MENCION": "bg-gradient-to-r from-blue-500 to-cyan-500",
@@ -42,12 +49,22 @@ const typeColors: Record<string, string> = {
 // Interface para props
 interface LatestMentionsPerArtistProps {
     artistName?: string;
+    selectedCity?: string;
+    selectedType?: string;
+    selectedCountry?: string;
+    selectedVenue?: string;
+    dateRange?: string;
     limit?: number;
 }
 
 export const LatestMentionsPerArtist = ({
     artistName: propArtistName,
-    limit = 20
+    limit = 20,
+    selectedCity = "todos",
+    selectedType = "todos",
+    selectedCountry = "todos",
+    selectedVenue = "todos",
+    dateRange = "todos"
 }: LatestMentionsPerArtistProps) => {
     const navigate = useNavigate();
     const { artistName: paramArtistName } = useParams<{ artistName: string }>();
@@ -77,11 +94,20 @@ export const LatestMentionsPerArtist = ({
         const fetchMentions = async () => {
             try {
                 setLoading(true);
-                const data = await getMentionsResume();
+                const filtros: FiltrosBusqueda = {
+                    pais: selectedCountry,
+                    ciudad: selectedCity,
+                    tipo: selectedType, 
+                    venue: selectedVenue,
+                    rango: dateRange
+                };
+                const data = await getMentionsResume(filtros);  
 
                 // Filtrar por artista
+                const searchName = normalizeText(artistName);
+                
                 const artistDetections = data.ultimasDetecciones.filter(
-                    det => det.Artista.toLowerCase() === artistName.toLowerCase()
+                    det => normalizeText(det.Artista) === searchName
                 );
 
                 setDetecciones(artistDetections);
@@ -91,13 +117,15 @@ export const LatestMentionsPerArtist = ({
                 if (artistDetections.length > 0) {
                     const spots = artistDetections.filter(d => d.Tipo === "SPOT").length;
                     const mentions = artistDetections.filter(d => d.Tipo === "MENCION").length;
-                    const ciudades = [...new Set(artistDetections.map(d => d.Ciudad))];
-                    const emisoras = [...new Set(artistDetections.map(d => d.Emisora))];
+                    
+                    // Asegurarnos de no incluir nulos en los conteos
+                    const ciudades = [...new Set(artistDetections.map(d => d.Ciudad).filter(Boolean))];
+                    const emisoras = [...new Set(artistDetections.map(d => d.Emisora).filter(Boolean))];
                     const venues = [...new Set(artistDetections.map(d => d.Venue || "No especificado").filter(v => v !== "No especificado"))];
 
                     // Ordenar por fecha para obtener primera y última
                     const sortedByDate = [...artistDetections].sort(
-                        (a, b) => new Date(b.Hora).getTime() - new Date(a.Hora).getTime()
+                        (a, b) => new Date(b.FechaDeteccion).getTime() - new Date(a.FechaDeteccion).getTime()
                     );
 
                     setStats({
@@ -107,8 +135,13 @@ export const LatestMentionsPerArtist = ({
                         ciudades,
                         emisoras,
                         venues,
-                        ultimaDeteccion: sortedByDate[0]?.Hora || "",
-                        primeraDeteccion: sortedByDate[sortedByDate.length - 1]?.Hora || ""
+                        ultimaDeteccion: sortedByDate[0]?.FechaDeteccion || "",
+                        primeraDeteccion: sortedByDate[sortedByDate.length - 1]?.FechaDeteccion || ""
+                    });
+                } else {
+                    // Resetear stats si no hay detecciones
+                    setStats({
+                        total: 0, spots: 0, mentions: 0, ciudades: [], emisoras: [], venues: [], ultimaDeteccion: "", primeraDeteccion: ""
                     });
                 }
 
@@ -124,7 +157,7 @@ export const LatestMentionsPerArtist = ({
         if (artistName) {
             fetchMentions();
         }
-    }, [artistName, limit]);
+    }, [artistName, limit, selectedCity, selectedType, selectedCountry, selectedVenue, dateRange]);
 
     // Función para manejar reproducción de audio
     const handlePlayAudio = (audioUrl: string, e: React.MouseEvent) => {
@@ -162,8 +195,6 @@ export const LatestMentionsPerArtist = ({
                 setCurrentlyPlaying(null);
                 audioRef.current = null;
             });
-
-            // Intentar reproducir (algunos navegadores requieren interacción de usuario)
             audio
                 .play()
                 .then(() => {
