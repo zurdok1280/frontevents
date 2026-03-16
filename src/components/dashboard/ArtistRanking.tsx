@@ -50,8 +50,8 @@ export const ArtistRanking = ({ limit = 100 }: ArtistRankingProps) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
-  //const API_URL = "http://localhost:8080/api/dashboard";
+ const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
+   //const API_URL = "http://localhost:8080/api/dashboard";
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getDiasFromContext = (rango: any): number => {
