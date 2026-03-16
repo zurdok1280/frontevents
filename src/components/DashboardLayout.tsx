@@ -33,8 +33,8 @@ export const DashboardLayout = ({ children }: DashboardLayoutProps) => {
   const [listaVenues, setListaVenues] = useState<string[]>([]);
 
   // URL Base
-  const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
-  //const API_URL = "http://localhost:8080/api/dashboard";
+  //const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
+  const API_URL = "http://localhost:8080/api/dashboard";
 
 
 

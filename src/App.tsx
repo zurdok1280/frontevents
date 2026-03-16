@@ -10,6 +10,7 @@ import RadioDetail from "./pages/RadioDetail";
 import ReportsAnalysis from "./pages/ReportsAnalysis";
 import NotFound from "./pages/NotFound";
 import { LatestMentionsPerArtist } from "./components/dashboard/LatestMentionsPerArtist";
+import Reportes from "./components/Reportes";
 
 const queryClient = new QueryClient();
 
@@ -22,6 +23,7 @@ const App = () => (
         <Routes>
           <Route path="/" element={<Index />} />
           <Route path="/reports" element={<ReportsAnalysis />} />
+          <Route path="/generar-reportes" element={<Reportes />} />
           <Route path="/event/:eventId" element={<EventDetail />} />
           <Route path="/event/:eventId/station/:stationName" element={<StationSchedule />} />
           <Route path="/event/:eventId/radio/:radioStation" element={<RadioDetail />} />

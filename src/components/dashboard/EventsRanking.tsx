@@ -110,7 +110,7 @@ export const EventsRanking = () => {
     venue: "",
     fechaEvento: "",
   });
-  //const API_URL = "http://localhost:8080/api/dashboard";
+ // const API_URL = "http://localhost:8080/api/dashboard";
   const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

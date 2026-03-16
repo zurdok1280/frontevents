@@ -3,9 +3,10 @@ import { DashboardLayout } from "@/components/DashboardLayout";
 import { EventsRanking } from "@/components/dashboard/EventsRanking";
 import { ArtistRecommendation } from "@/components/dashboard/ArtistRecommendation";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { BarChart3, Users } from "lucide-react";
+import { BarChart3, Users, FileText } from "lucide-react";
 import { LatestMentions } from "@/components/dashboard/LatestMentions";
 import { ArtistRanking } from "@/components/dashboard/ArtistRanking";
+import Reportes  from "@/components/Reportes";
 
 const Index = () => {
   const [activeTab, setActiveTab] = useState("eventos");
@@ -13,7 +14,7 @@ const Index = () => {
   return (
     <DashboardLayout>
       <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-        <TabsList className="grid w-full max-w-2xl grid-cols-3 mb-6">
+        <TabsList className="grid w-full max-w-3xl grid-cols-4 mb-6">
           <TabsTrigger value="eventos" className="flex items-center gap-2">
             <BarChart3 className="h-4 w-4" />
             Ranking de Eventos
@@ -30,6 +31,13 @@ const Index = () => {
             <BarChart3 className="h-4 w-5" />
             Ultimas Menciones
           </TabsTrigger>
+          <TabsTrigger 
+            value="reportes" 
+            className="flex items-center gap-2 "
+          >
+            <FileText className="h-4 w-4" />
+            Generar Reportes
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="menciones">
@@ -43,6 +51,9 @@ const Index = () => {
         <TabsContent value="artistas">
           {/*<ArtistRecommendation />*/}
           <ArtistRanking />
+        </TabsContent>
+        <TabsContent value="reportes" className="animate-in fade-in-50 duration-300">
+          <Reportes /> 
         </TabsContent>
       </Tabs>
     </DashboardLayout>
