@@ -24,7 +24,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getRankingEventos, TopEvento, FiltrosBusqueda } from "@/lib/api";
+import { getRankingEventos, TopEvento, FiltrosBusqueda, BASE_URL } from "@/lib/api";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useDashboardContext } from "@/components/DashboardLayout";
@@ -111,8 +111,8 @@ export const EventsRanking = () => {
     fechaEvento: "",
   });
  // const API_URL = "http://localhost:8080/api/dashboard";
-  const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
-
+  //const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
+    const API_URL = `${BASE_URL}/api/dashboard`;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const getDiasFromContext = (rango: any): number => {
     if (!rango) return 0;

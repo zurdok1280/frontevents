@@ -1,8 +1,8 @@
 // api.ts - Eventos Monitor Latino API Client
 
 // ========== Configuración ==========
-const BASE_URL = "https://backevent.monitorlatino.com/api/dashboard/";
-//const BASE_URL = "http://localhost:8080/api/dashboard/";
+//export const BASE_URL = import.meta.env.VITE_API_URL || "https://backevent.monitorlatino.com";
+export const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:8080";
 
 // ========== Interfaces ==========
 // Interface para los KPis

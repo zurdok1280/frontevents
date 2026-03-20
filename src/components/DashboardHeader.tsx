@@ -27,7 +27,6 @@ interface DashboardHeaderProps {
   onVenueChange: (venue: string) => void;
   onSortChange: (sort: string) => void;
 
-  // --- NUEVAS PROPS (Opcionales para que no truene si faltan) ---
   countriesList?: string[];
   citiesList?: string[];
   venuesList?: string[];

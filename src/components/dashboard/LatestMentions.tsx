@@ -27,6 +27,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { useDashboardContext } from "@/components/DashboardLayout";
+import { BASE_URL } from "@/lib/api";
 
 // Definición de tipos local
 interface Deteccion {
@@ -48,7 +49,8 @@ interface Deteccion {
 
 // URL BASE
 //const API_URL = "http://localhost:8080/api/dashboard";
-const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
+//const API_URL = "https://backevent.monitorlatino.com/api/dashboard/";
+const API_URL = `${BASE_URL}/api/dashboard`;
 
 const formatTimeAgo = (dateString: string) => {
   if (!dateString) return "";
