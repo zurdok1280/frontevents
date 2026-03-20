@@ -1,3 +1,4 @@
+import { BASE_URL } from "@/lib/api";
 import React, { useState, useEffect, ChangeEvent, useMemo } from "react";
 
 export const Reportes = () => {
@@ -37,13 +38,15 @@ export const Reportes = () => {
 
   useEffect(() => {
     //fetch("http://localhost:8080/api/reportes/artistas")
-    fetch("https://backevent.monitorlatino.com/api/reportes/artistas")  
+    //fetch("https://backevent.monitorlatino.com/api/reportes/artistas") 
+    fetch(`${BASE_URL}/api/reportes/artistas`) 
     .then((res) => res.json())
       .then((data) => setArtistas(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Error cargando artistas:", err));
 
-    //fetch("http://localhost:8080/api/reportes/emisoras")
-    fetch("https://backevent.monitorlatino.com/api/reportes/emisoras")  
+   //fetch("http://localhost:8080/api/reportes/emisoras")
+     //fetch("https://backevent.monitorlatino.com/api/reportes/emisoras")
+    fetch(`${BASE_URL}/api/reportes/emisoras`)
     .then((res) => res.json())
       .then((data) => setEmisoras(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Error cargando emisoras:", err));
@@ -52,8 +55,9 @@ export const Reportes = () => {
   }, []);
 
   const cargarConfiguracion = () => {
-   // fetch("http://localhost:8080/api/configuracion/estaciones")
-   fetch("https://backevent.monitorlatino.com/api/configuracion/estaciones")  
+    //fetch("http://localhost:8080/api/configuracion/estaciones")
+   //fetch("https://backevent.monitorlatino.com/api/configuracion/estaciones") 
+    fetch(`${BASE_URL}/api/configuracion/estaciones`)
    .then((res) => res.json())
       .then((data) => setConfiguraciones(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Error cargando configuración:", err));
@@ -79,7 +83,8 @@ export const Reportes = () => {
   filtros.emisoras.forEach(e => params.append("emisoras", e));
 
   //const url = `http://localhost:8080/api/reportes/descargar?${params.toString()}`;
-  const url = `https://backevent.monitorlatino.com/api/reportes/descargar?${params.toString()}`;
+  //const url = `https://backevent.monitorlatino.com/api/reportes/descargar?${params.toString()}`;
+  const url = `${BASE_URL}/api/reportes/descargar?${params.toString()}`;
   // Abrir en pestaña nueva para iniciar descarga
   window.open(url, "_blank");
 };
@@ -107,7 +112,8 @@ const emisorasModalFiltradas = useMemo(() => {
       params.append("fechaFin", fechaFinRec);
 
       //const res = await fetch(`http://localhost:8080/api/reportes/reprocesar-audios?${params.toString()}`, {
-    const res = await fetch(`https://backevent.monitorlatino.com/api/reportes/reprocesar-audios?${params.toString()}`, {
+    //const res = await fetch(`https://backevent.monitorlatino.com/api/reportes/reprocesar-audios?${params.toString()}`, {
+      const res = await fetch(`${BASE_URL}/api/reportes/reprocesar-audios?${params.toString()}`, {
       method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(emisorasRec),
@@ -216,7 +222,8 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
       .map((c) => c.stream_id);
 
     //fetch("http://localhost:8080/api/configuracion/guardar", {
-    fetch("https://backevent.monitorlatino.com/api/configuracion/guardar", { 
+    //fetch("https://backevent.monitorlatino.com/api/configuracion/guardar", { 
+    fetch(`${BASE_URL}/api/configuracion/guardar`, {
     method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(streamsActivos),
