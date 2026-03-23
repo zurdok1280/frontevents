@@ -1,5 +1,11 @@
 import { BASE_URL } from "@/lib/api";
-import React, { useState, useEffect, ChangeEvent, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  ChangeEvent,
+  useMemo,
+  useDeferredValue,
+} from "react";
 
 export const Reportes = () => {
   //eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -27,28 +33,34 @@ export const Reportes = () => {
   // Estados para dropdowns colapsables
   const [expandirArtistas, setExpandirArtistas] = useState(false);
   const [expandirEmisoras, setExpandirEmisoras] = useState(false);
-  // Estados para modal de recuperación de audios 
+  // Estados para modal de recuperación de audios
   const [mostrarModalRec, setMostrarModalRec] = useState(false);
-  const [estadoRec, setEstadoRec] = useState<"idle" | "loading" | "success" | "error">("idle");
+  const [estadoRec, setEstadoRec] = useState<
+    "idle" | "loading" | "success" | "error"
+  >("idle");
   const [mensajeRec, setMensajeRec] = useState("");
   const [emisorasRec, setEmisorasRec] = useState<number[]>([]);
   const [fechaInicioRec, setFechaInicioRec] = useState("");
   const [fechaFinRec, setFechaFinRec] = useState("");
   const [busquedaEmisoraRec, setBusquedaEmisoraRec] = useState("");
-
+  const [limiteEmisorasRec, setLimiteEmisorasRec] = useState(50);
+  const busquedaEmisoraRecDiferida = useDeferredValue(busquedaEmisoraRec);
   useEffect(() => {
     //fetch("http://localhost:8080/api/reportes/artistas")
-    //fetch("https://backevent.monitorlatino.com/api/reportes/artistas") 
-    fetch(`${BASE_URL}/api/reportes/artistas`) 
-    .then((res) => res.json())
+    //fetch("https://backevent.monitorlatino.com/api/reportes/artistas")
+    fetch(`${BASE_URL}/api/reportes/artistas`)
+      .then((res) => res.json())
       .then((data) => setArtistas(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Error cargando artistas:", err));
 
-   //fetch("http://localhost:8080/api/reportes/emisoras")
-     //fetch("https://backevent.monitorlatino.com/api/reportes/emisoras")
+    //fetch("http://localhost:8080/api/reportes/emisoras")
+    //fetch("https://backevent.monitorlatino.com/api/reportes/emisoras")
     fetch(`${BASE_URL}/api/reportes/emisoras`)
-    .then((res) => res.json())
-      .then((data) => setEmisoras(Array.isArray(data) ? data : []))
+      .then((res) => res.json())
+      .then((data) => {
+        console.log("👉 ASÍ LLEGAN LAS EMISORAS:", data[0]); // <--- AGREGA ESTA LÍNEA
+        setEmisoras(Array.isArray(data) ? data : []);
+      })
       .catch((err) => console.error("Error cargando emisoras:", err));
 
     cargarConfiguracion();
@@ -56,50 +68,57 @@ export const Reportes = () => {
 
   const cargarConfiguracion = () => {
     //fetch("http://localhost:8080/api/configuracion/estaciones")
-   //fetch("https://backevent.monitorlatino.com/api/configuracion/estaciones") 
+    //fetch("https://backevent.monitorlatino.com/api/configuracion/estaciones")
     fetch(`${BASE_URL}/api/configuracion/estaciones`)
-   .then((res) => res.json())
+      .then((res) => res.json())
       .then((data) => setConfiguraciones(Array.isArray(data) ? data : []))
       .catch((err) => console.error("Error cargando configuración:", err));
   };
 
-  const descargarReporte = (tipo: 'agrupado' | 'detallado') => {
-  // Validar si hay fechas (opcional, pero recomendado)
-  if (!filtros.fechaInicio || !filtros.fechaFin) {
-    alert("Por favor selecciona un rango de fechas");
-    return;
-  }
+  const descargarReporte = (tipo: "agrupado" | "detallado") => {
+    // Validar si hay fechas (opcional, pero recomendado)
+    if (!filtros.fechaInicio || !filtros.fechaFin) {
+      alert("Por favor selecciona un rango de fechas");
+      return;
+    }
 
-  const params = new URLSearchParams();
-  // Los nombres de la izquierda deben ser IGUALES a los @RequestParam de Java
-  params.append("fechaInicio", filtros.fechaInicio);
-  params.append("fechaFin", filtros.fechaFin);
-  params.append("tipo", tipo);
-  
-  // Agregar IDs de artistas
-  filtros.artistasIds.forEach(id => params.append("artistasIds", id));
-  
-  // Agregar Emisoras
-  filtros.emisoras.forEach(e => params.append("emisoras", e));
+    const params = new URLSearchParams();
+    // Los nombres de la izquierda deben ser IGUALES a los @RequestParam de Java
+    params.append("fechaInicio", filtros.fechaInicio);
+    params.append("fechaFin", filtros.fechaFin);
+    params.append("tipo", tipo);
 
-  //const url = `http://localhost:8080/api/reportes/descargar?${params.toString()}`;
-  //const url = `https://backevent.monitorlatino.com/api/reportes/descargar?${params.toString()}`;
-  const url = `${BASE_URL}/api/reportes/descargar?${params.toString()}`;
-  // Abrir en pestaña nueva para iniciar descarga
-  window.open(url, "_blank");
-};
-// Función para el modal de recuperación: filtrar emisoras para mostrar en el modal
-const emisorasModalFiltradas = useMemo(() => {
-    const bus = busquedaEmisoraRec.toLowerCase();
+    // Agregar IDs de artistas
+    filtros.artistasIds.forEach((id) => params.append("artistasIds", id));
+
+    // Agregar Emisoras
+    filtros.emisoras.forEach((e) => params.append("emisoras", e));
+
+    //const url = `http://localhost:8080/api/reportes/descargar?${params.toString()}`;
+    //const url = `https://backevent.monitorlatino.com/api/reportes/descargar?${params.toString()}`;
+    const url = `${BASE_URL}/api/reportes/descargar?${params.toString()}`;
+    // Abrir en pestaña nueva para iniciar descarga
+    window.open(url, "_blank");
+  };
+  // Función para el modal de recuperación: filtrar emisoras para mostrar en el modal
+  const emisorasModalFiltradas = useMemo(() => {
+    const bus = busquedaEmisoraRecDiferida.toLowerCase();
     const lista = Array.isArray(configuraciones) ? configuraciones : [];
     return lista.filter((c) => {
       const nombre = (c.stream_desc || "").toLowerCase();
       const id = (c.stream_id || "").toString();
       return nombre.includes(bus) || id.includes(bus);
     });
-  }, [busquedaEmisoraRec, configuraciones]);
-   // Función para recuperar audios atrasados 
-   const procesarRecuperacion = async () => {
+  }, [busquedaEmisoraRecDiferida, configuraciones]);
+  // scroll para emisoras en modal de recuperación
+  const scrollEmisorasRec = (e: React.UIEvent<HTMLDivElement>) => {
+    const { scrollTop, scrollHeight, clientHeight } = e.currentTarget;
+    if (scrollHeight - scrollTop <= clientHeight + 20) {
+      setLimiteEmisorasRec((prev) => prev + 50);
+    }
+  };
+  // Función para recuperar audios atrasados
+  const procesarRecuperacion = async () => {
     if (!fechaInicioRec || !fechaFinRec || emisorasRec.length === 0) {
       setEstadoRec("error");
       setMensajeRec("Selecciona fechas y al menos una emisora.");
@@ -112,22 +131,27 @@ const emisorasModalFiltradas = useMemo(() => {
       params.append("fechaFin", fechaFinRec);
 
       //const res = await fetch(`http://localhost:8080/api/reportes/reprocesar-audios?${params.toString()}`, {
-    //const res = await fetch(`https://backevent.monitorlatino.com/api/reportes/reprocesar-audios?${params.toString()}`, {
-      const res = await fetch(`${BASE_URL}/api/reportes/reprocesar-audios?${params.toString()}`, {
-      method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(emisorasRec),
-});
-if (!res.ok) {
-    const errorText = await res.text(); // Leemos como texto, no como JSON
-    setEstadoRec("error");
-    setMensajeRec(errorText);
-    return; // Detenemos la ejecución aquí
-}
+      //const res = await fetch(`https://backevent.monitorlatino.com/api/reportes/reprocesar-audios?${params.toString()}`, {
+      const res = await fetch(
+        `${BASE_URL}/api/reportes/reprocesar-audios?${params.toString()}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(emisorasRec),
+        },
+      );
+      if (!res.ok) {
+        const errorText = await res.text(); // Leemos como texto, no como JSON
+        setEstadoRec("error");
+        setMensajeRec(errorText);
+        return; // Detenemos la ejecución aquí
+      }
 
       const data = await res.json();
-setEstadoRec("success");
-setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la IA.`);
+      setEstadoRec("success");
+      setMensajeRec(
+        `¡Éxito! Se encontraron ${data.length} audios y se enviaron a la IA.`,
+      );
 
       // Si el backend mandó un string, es que está vacío o hubo un mensaje personalizado
       if (typeof data === "string") {
@@ -136,12 +160,16 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
       } else {
         setEstadoRec("success");
         // AQUÍ VA LA CONEXIÓN A TU IA (Actualmente simulada)
-        setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a procesar a la IA. Estarán listos para tu reporte en unos minutos.`);
+        setMensajeRec(
+          `¡Éxito! Se encontraron ${data.length} audios y se enviaron a procesar a la IA. Estarán listos para tu reporte en unos minutos.`,
+        );
       }
     } catch (error) {
       console.error(error);
       setEstadoRec("error");
-      setMensajeRec("Error al conectar con el servidor para buscar audios históricos.");
+      setMensajeRec(
+        "Error al conectar con el servidor para buscar audios históricos.",
+      );
     }
   };
 
@@ -155,10 +183,10 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
   };
 
   const toggleEmisoraRecuperacion = (streamId: number) => {
-    setEmisorasRec(prev => 
-      prev.includes(streamId) 
-        ? prev.filter(id => id !== streamId) 
-        : [...prev, streamId]
+    setEmisorasRec((prev) =>
+      prev.includes(streamId)
+        ? prev.filter((id) => id !== streamId)
+        : [...prev, streamId],
     );
   };
 
@@ -171,7 +199,14 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
   const emisorasFiltradas = useMemo(() => {
     const bus = busquedaEmisora.toLowerCase();
     const lista = Array.isArray(emisoras) ? emisoras : [];
-    return lista.filter((e) => e.nombre?.toLowerCase().includes(bus));
+
+    return lista.filter((e) => {
+      const nombre = (e.nombre || "").toLowerCase();
+      const id = (e.id || "").toString();
+      const ciudad = (e.ciudad || "").toLowerCase();
+
+      return nombre.includes(bus) || id.includes(bus) || ciudad.includes(bus);
+    });
   }, [busquedaEmisora, emisoras]);
 
   const configFiltrada = useMemo(() => {
@@ -222,9 +257,9 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
       .map((c) => c.stream_id);
 
     //fetch("http://localhost:8080/api/configuracion/guardar", {
-    //fetch("https://backevent.monitorlatino.com/api/configuracion/guardar", { 
+    //fetch("https://backevent.monitorlatino.com/api/configuracion/guardar", {
     fetch(`${BASE_URL}/api/configuracion/guardar`, {
-    method: "POST",
+      method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(streamsActivos),
     })
@@ -423,7 +458,6 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
                   >
                     <span className="max-w-[150px] truncate">{nombre}</span>
                     <button
-                      
                       onClick={() =>
                         handleCheckboxChange(
                           //eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -455,7 +489,7 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
                 </div>
                 <input
                   type="text"
-                  placeholder="Escribe ciudad o emisora..."
+                  placeholder="Escribe ID, ciudad o emisora..."
                   className="w-full border p-2 rounded-md mb-2 text-sm focus:border-blue-500 outline-none transition-colors"
                   value={busquedaEmisora}
                   onChange={(e) => {
@@ -475,12 +509,15 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
                       <input
                         type="checkbox"
                         className="w-4 h-4 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
-                        value={e.nombre}
-                        checked={filtros.emisoras.includes(e.nombre)}
+                        value={e.id}
+                        checked={filtros.emisoras.includes(e.id)}
                         onChange={(e) => handleCheckboxChange(e, "emisoras")}
                       />
                       <span className="text-xs text-gray-700 group-hover:text-yellow-700">
-                        {e.nombre}
+                        {e.nombre}{" "}
+                        {e.id && (
+                          <span className="text-gray-400 ml-1">({e.id})</span>
+                        )}
                       </span>
                     </label>
                   ))}
@@ -490,17 +527,43 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
           </div>
         </div>
         {/* BOTONES PEQUEÑOS */}
-        <div className="flex justify-end gap-3 border-t border-gray-100 pt-6">
-          <button
-            onClick={() => descargarReporte('agrupado')}
-            className="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-md shadow-blue-100 active:scale-95">
-            Reporte Agrupado
-          </button>
-          <button
-            onClick={() => descargarReporte('detallado')}
-            className="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-md shadow-green-100 active:scale-95">
-            Reporte Detallado
-          </button>
+     {/* BOTONES PEQUEÑOS */}
+        <div className="flex justify-end gap-4 border-t border-gray-100 pt-6">
+          
+          {/* Contenedor Botón Agrupado */}
+          <div className="relative group">
+            <button
+              onClick={() => descargarReporte('agrupado')}
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-md shadow-blue-100 active:scale-95"
+            >
+              Reporte Agrupado
+            </button>
+            {/* Tooltip Agrupado (White Glass) */}
+            <div className="absolute bottom-full right-0 mb-3 hidden group-hover:block w-64 p-3 bg-white/90 backdrop-blur-md border border-gray-200 shadow-xl z-20 pointer-events-none animate-fadeIn rounded-2xl">
+              <p className="font-bold text-blue-700 mb-1 text-xs">Campos incluidos:</p>
+              <p className="leading-relaxed text-gray-600 text-xs">Cadena, Estación, Artista y Veces mencionado.</p>
+              {/* Triangulito apuntando hacia abajo (Blanco) */}
+              <div className="absolute top-full right-10 border-4 border-transparent border-t-white/90"></div>
+            </div>
+          </div>
+
+          {/* Contenedor Botón Detallado */}
+          <div className="relative group">
+            <button
+              onClick={() => descargarReporte('detallado')}
+              className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-6 rounded-lg text-sm transition-all shadow-md shadow-green-100 active:scale-95"
+            >
+              Reporte Detallado
+            </button>
+            {/* Tooltip Detallado (White Glass) */}
+            <div className="absolute bottom-full right-0 mb-3 hidden group-hover:block w-80 p-3 bg-white/90 backdrop-blur-md border border-gray-200 shadow-xl z-20 pointer-events-none animate-fadeIn rounded-2xl">
+              <p className="font-bold text-green-700 mb-1 text-xs">Campos incluidos:</p>
+              <p className="leading-relaxed text-gray-600 text-xs">Estación, Ciudad, Cadena, Fecha de detección, Fecha del evento, Venue, Tipo, Duración, Audio URL, Respuesta de IA, Transcripción y Categoría.</p>
+              {/* Triangulito apuntando hacia abajo (Blanco) */}
+              <div className="absolute top-full right-12 border-4 border-transparent border-t-white/90"></div>
+            </div>
+          </div>
+
         </div>
       </div>
       {/* TARJETA: CONFIGURACIÓN (TABLA) */}
@@ -514,16 +577,16 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
               onClick={() => setMostrarModalRec(true)}
               className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-2 rounded-lg font-bold transition-all shadow-md active:scale-95 text-sm"
             >
-              🔄 Recuperar Audios Olvidados
+              Recuperar Audios Olvidados
             </button>
-          <button
-            onClick={guardarConfiguracion}
-            disabled={guardando}
-            className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-2 rounded-lg font-bold transition-all disabled:bg-gray-400"
-          >
-            {guardando ? "Procesando..." : "Guardar Cambios"}
-          </button>
-        </div>
+            <button
+              onClick={guardarConfiguracion}
+              disabled={guardando}
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-8 py-2 rounded-lg font-bold transition-all disabled:bg-gray-400"
+            >
+              {guardando ? "Procesando..." : "Guardar Cambios"}
+            </button>
+          </div>
         </div>
 
         <div className="relative mb-4">
@@ -598,76 +661,123 @@ setMensajeRec(`¡Éxito! Se encontraron ${data.length} audios y se enviaron a la
       {mostrarModalRec && (
         <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center z-50 p-4 animate-fadeIn">
           <div className="bg-white rounded-2xl shadow-2xl w-full max-w-xl overflow-hidden flex flex-col max-h-[90vh]">
-            
             <div className="bg-amber-500 p-4 text-white flex justify-between items-center">
-              <h3 className="font-bold text-lg">Recuperar Audios No Monitoreados</h3>
-              <button onClick={cerrarModalRecuperacion} className="text-white hover:text-amber-200 text-2xl font-bold leading-none">&times;</button>
+              <h3 className="font-bold text-lg">
+                Recuperar Audios No Monitoreados
+              </h3>
+              <button
+                onClick={cerrarModalRecuperacion}
+                className="text-white hover:text-amber-200 text-2xl font-bold leading-none"
+              >
+                &times;
+              </button>
             </div>
 
             <div className="p-6 overflow-y-auto custom-scrollbar">
               <p className="text-sm text-gray-600 mb-4">
-                Selecciona las fechas y las estaciones que olvidaste monitorear. Buscaremos los audios guardados y los mandaremos a analizar con la IA.
+                Selecciona las fechas y las estaciones que olvidaste monitorear.
+                Buscaremos los audios guardados y los mandaremos a analizar con
+                la IA.
               </p>
 
               {estadoRec !== "idle" && (
-                <div className={`p-3 mb-4 rounded-lg text-sm font-bold ${estadoRec === 'loading' ? 'bg-blue-50 text-blue-700' : estadoRec === 'success' ? 'bg-green-50 text-green-700 border border-green-200' : 'bg-red-50 text-red-700 border border-red-200'}`}>
-                  {estadoRec === "loading" ? "Buscando audios en el servidor..." : mensajeRec}
+                <div
+                  className={`p-3 mb-4 rounded-lg text-sm font-bold ${estadoRec === "loading" ? "bg-blue-50 text-blue-700" : estadoRec === "success" ? "bg-green-50 text-green-700 border border-green-200" : "bg-red-50 text-red-700 border border-red-200"}`}
+                >
+                  {estadoRec === "loading"
+                    ? "Buscando audios en el servidor..."
+                    : mensajeRec}
                 </div>
               )}
 
               <div className="grid grid-cols-2 gap-4 mb-5">
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">Fecha Inicio</label>
-                  <input type="datetime-local" value={fechaInicioRec} onChange={e => setFechaInicioRec(e.target.value)} className="w-full border p-2 rounded text-sm outline-none focus:border-amber-400" />
+                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                    Fecha Inicio
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={fechaInicioRec}
+                    onChange={(e) => setFechaInicioRec(e.target.value)}
+                    className="w-full border p-2 rounded text-sm outline-none focus:border-amber-400"
+                  />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-500 mb-1">Fecha Fin</label>
-                  <input type="datetime-local" value={fechaFinRec} onChange={e => setFechaFinRec(e.target.value)} className="w-full border p-2 rounded text-sm outline-none focus:border-amber-400" />
+                  <label className="block text-xs font-bold text-gray-500 mb-1">
+                    Fecha Fin
+                  </label>
+                  <input
+                    type="datetime-local"
+                    value={fechaFinRec}
+                    onChange={(e) => setFechaFinRec(e.target.value)}
+                    className="w-full border p-2 rounded text-sm outline-none focus:border-amber-400"
+                  />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-500 mb-1">Buscar Emisoras ({emisorasRec.length} seleccionadas)</label>
-                <input 
-                  type="text" 
-                  placeholder="Escribe el nombre de la emisora..." 
+                <label className="block text-xs font-bold text-gray-500 mb-1">
+                  Buscar Emisoras ({emisorasRec.length} seleccionadas)
+                </label>
+                <input
+                  type="text"
+                  placeholder="Escribe el nombre de la emisora..."
                   value={busquedaEmisoraRec}
-                  onChange={e => setBusquedaEmisoraRec(e.target.value)}
-                  className="w-full border p-2 rounded mb-2 text-sm outline-none focus:border-amber-400" 
+                  onChange={(e) => {
+                    setBusquedaEmisoraRec(e.target.value);
+                    setLimiteEmisorasRec(50);
+                  }}
+                  className="w-full border p-2 rounded mb-2 text-sm outline-none focus:border-amber-400"
                 />
-                
-                <div className="border rounded h-40 overflow-y-auto p-2 bg-gray-50 custom-scrollbar">
-                  {emisorasModalFiltradas.map((c) => (
-                    <label key={c.stream_id} className="flex items-center gap-2 p-1.5 hover:bg-amber-50 rounded cursor-pointer transition-colors border-b border-gray-100 last:border-0">
-                      <input 
-                        type="checkbox" 
-                        checked={emisorasRec.includes(c.stream_id)}
-                        onChange={() => toggleEmisoraRecuperacion(c.stream_id)}
-                        className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400" 
-                      />
-                      <span className="text-sm text-gray-700">{c.stream_desc} <span className="text-xs text-gray-400">({c.stream_id})</span></span>
-                    </label>
-                  ))}
+
+                <div
+                  className="border rounded h-40 overflow-y-auto p-2 bg-gray-50 custom-scrollbar"
+                  onScroll={scrollEmisorasRec}
+                >
+                  {emisorasModalFiltradas
+                    .slice(0, limiteEmisorasRec)
+                    .map((c) => (
+                      <label
+                        key={c.stream_id}
+                        className="flex items-center gap-2 p-1.5 hover:bg-amber-50 rounded cursor-pointer transition-colors border-b border-gray-100 last:border-0"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={emisorasRec.includes(c.stream_id)}
+                          onChange={() =>
+                            toggleEmisoraRecuperacion(c.stream_id)
+                          }
+                          className="w-4 h-4 rounded text-amber-500 focus:ring-amber-400"
+                        />
+                        <span className="text-sm text-gray-700">
+                          {c.stream_desc}{" "}
+                          <span className="text-xs text-gray-400">
+                            ({c.stream_id})
+                          </span>
+                        </span>
+                      </label>
+                    ))}
                 </div>
               </div>
             </div>
 
             <div className="bg-gray-50 p-4 border-t flex justify-end gap-3">
-              <button 
-                onClick={cerrarModalRecuperacion} 
+              <button
+                onClick={cerrarModalRecuperacion}
                 className="px-4 py-2 text-gray-600 hover:bg-gray-200 rounded-lg text-sm font-bold transition-colors"
               >
                 Cerrar
               </button>
-              <button 
+              <button
                 onClick={procesarRecuperacion}
-                disabled={estadoRec === 'loading'}
+                disabled={estadoRec === "loading"}
                 className="bg-amber-500 hover:bg-amber-600 text-white px-6 py-2 rounded-lg text-sm font-bold transition-all disabled:opacity-50"
               >
-                {estadoRec === 'loading' ? 'Procesando...' : 'Recuperar e Iniciar IA'}
+                {estadoRec === "loading"
+                  ? "Procesando..."
+                  : "Recuperar e Iniciar IA"}
               </button>
             </div>
-            
           </div>
         </div>
       )}
