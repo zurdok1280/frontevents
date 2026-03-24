@@ -83,16 +83,22 @@ export const Reportes = () => {
     }
 
     const params = new URLSearchParams();
-    // Los nombres de la izquierda deben ser IGUALES a los @RequestParam de Java
+    
     params.append("fechaInicio", filtros.fechaInicio);
     params.append("fechaFin", filtros.fechaFin);
     params.append("tipo", tipo);
 
+    if (filtros.artistasIds.length > 0) {
+        params.append("artistasIds", filtros.artistasIds.join(","));
+    }
+    if (filtros.emisoras.length > 0) {
+        params.append("emisoras", filtros.emisoras.join(","));
+    }
     // Agregar IDs de artistas
-    filtros.artistasIds.forEach((id) => params.append("artistasIds", id));
+    //filtros.artistasIds.forEach((id) => params.append("artistasIds", id));
 
     // Agregar Emisoras
-    filtros.emisoras.forEach((e) => params.append("emisoras", e));
+    //filtros.emisoras.forEach((e) => params.append("emisoras", e));
 
     //const url = `http://localhost:8080/api/reportes/descargar?${params.toString()}`;
     //const url = `https://backevent.monitorlatino.com/api/reportes/descargar?${params.toString()}`;
@@ -509,8 +515,8 @@ export const Reportes = () => {
                       <input
                         type="checkbox"
                         className="w-4 h-4 rounded border-gray-300 text-yellow-600 focus:ring-yellow-500"
-                        value={e.id}
-                        checked={filtros.emisoras.includes(e.id)}
+                       value={e.nombre}
+                        checked={filtros.emisoras.includes(e.nombre)}
                         onChange={(e) => handleCheckboxChange(e, "emisoras")}
                       />
                       <span className="text-xs text-gray-700 group-hover:text-yellow-700">
